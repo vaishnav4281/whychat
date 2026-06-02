@@ -10,6 +10,7 @@ export function ChatsList({ onOpenChat }: Props) {
   const [friends, setFriends] = useState<PeerUser[]>([]);
   useEffect(() => setFriends(loadFriends()), []);
 
+  return (
     <div className="p-6 h-full">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-2 mb-1">

@@ -65,6 +65,7 @@ export function PersistentChat({ peer, onBack }: Props) {
     setRecording(false);
   };
 
+  return (
     <div className="w-full h-full flex flex-col glass-card rounded-3xl overflow-hidden">
         {/* Header */}
         <div className="px-5 py-4 flex items-center gap-3 border-b border-white/40">
