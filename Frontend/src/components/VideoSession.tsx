@@ -20,15 +20,18 @@ interface Props {
 
 export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props) {
   const [phase, setPhase] = useState<Phase>("idle");
-  const [peer, setPeer] = useState<any>(null); // We map peer to the match data
+  const [peer, setPeer] = useState<any>(null);
   const [requested, setRequested] = useState(false);
   const [accepted, setAccepted] = useState(false);
   const [seconds, setSeconds] = useState(0);
+  const [online, setOnline] = useState(0);
   
   const localRef = useRef<HTMLVideoElement>(null);
   const remoteRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
+    signaling.connect().catch(() => {});
+
     const onLocalStream = (e: CustomEvent<{ stream: MediaStream }>) => {
       if (localRef.current) localRef.current.srcObject = e.detail.stream;
     };
@@ -56,17 +59,22 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
       setSeconds(0);
     };
 
+    const onMetrics = (e: CustomEvent<{ online: number }>) => {
+      setOnline(e.detail.online);
+    };
+
     window.addEventListener('whychat_local_stream', onLocalStream as EventListener);
     window.addEventListener('whychat_remote_stream', onRemoteStream as EventListener);
     window.addEventListener('whychat_video_cleanup', onCleanup);
     signaling.events.addEventListener('match_found', onMatchFound as EventListener);
-    // Note: signaling.events already handles match_found natively, but webrtc also processes it
+    signaling.events.addEventListener('global_metrics', onMetrics as EventListener);
 
     return () => {
       window.removeEventListener('whychat_local_stream', onLocalStream as EventListener);
       window.removeEventListener('whychat_remote_stream', onRemoteStream as EventListener);
       window.removeEventListener('whychat_video_cleanup', onCleanup);
       signaling.events.removeEventListener('match_found', onMatchFound as EventListener);
+      signaling.events.removeEventListener('global_metrics', onMetrics as EventListener);
     };
   }, []);
 
@@ -142,7 +150,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
           </p>
           <div className="flex items-center justify-center gap-2 mb-6">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse-dot" />
-            <span className="text-xs font-semibold">1,247 strangers online</span>
+            <span className="text-xs font-semibold">{online.toLocaleString()} strangers online</span>
           </div>
           <button onClick={enterPool}
             className="gradient-cyber text-white font-semibold px-8 py-4 rounded-2xl shadow-lg hover:scale-[1.02] active:scale-[0.99] transition inline-flex items-center gap-2">

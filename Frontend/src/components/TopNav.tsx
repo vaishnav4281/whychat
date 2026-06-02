@@ -12,7 +12,7 @@ interface Props {
   online?: number;
 }
 
-export function TopNav({ profile, session, onSessionChange, onLogout, online = 1247 }: Props) {
+export function TopNav({ profile, session, onSessionChange, onLogout, online = 0 }: Props) {
   return (
     <header className="sticky top-0 z-30 px-6 py-4">
       <div className="glass-strong rounded-2xl px-5 py-3 flex items-center gap-4">
