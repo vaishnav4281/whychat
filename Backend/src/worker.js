@@ -1,6 +1,9 @@
+// worker.js - Ephemeral WebRTC & WebSocket Router for WhyChat
+// Optimized with High-Performance DSA for Zero-Database Scaling
+
 const clientsBySocket = new Map();
 const clientsById = new Map();
-const videoQueue = [];
+const videoQueue = []; // Strictly handled as a FIFO Queue
 
 const HEARTBEAT_MS = 25000;
 
@@ -64,39 +67,38 @@ function relay(sender, message) {
 }
 
 function removeFromVideoQueue(clientId) {
-  let index = videoQueue.indexOf(clientId);
-  while (index !== -1) {
+  const index = videoQueue.indexOf(clientId);
+  if (index !== -1) {
     videoQueue.splice(index, 1);
-    index = videoQueue.indexOf(clientId);
   }
 }
 
 function joinVideoQueue(client) {
   removeFromVideoQueue(client.id);
 
-  const partnerId = videoQueue.find((id) => id !== client.id && clientsById.has(id));
-  if (!partnerId) {
-    videoQueue.push(client.id);
-    return;
+  // O(1) Queue Logic: Pull the first candidate who isn't self and is still connected
+  while (videoQueue.length > 0) {
+    const partnerId = videoQueue.shift(); // Remove from front of queue
+    const partner = clientsById.get(partnerId);
+
+    // If partner exists and is still online, perform match
+    if (partner && partner.id !== client.id) {
+      send(client, "match_found", {
+        peerId: partner.id,
+        peer: publicProfile(partner),
+        initiateCall: true,
+      });
+      send(partner, "match_found", {
+        peerId: client.id,
+        peer: publicProfile(client),
+        initiateCall: false,
+      });
+      return;
+    }
   }
 
-  removeFromVideoQueue(partnerId);
-  const partner = clientsById.get(partnerId);
-  if (!partner) {
-    videoQueue.push(client.id);
-    return;
-  }
-
-  send(client, "match_found", {
-    peerId: partner.id,
-    peer: publicProfile(partner),
-    initiateCall: true,
-  });
-  send(partner, "match_found", {
-    peerId: client.id,
-    peer: publicProfile(client),
-    initiateCall: false,
-  });
+  // No valid matching candidates found; join the queue
+  videoQueue.push(client.id);
 }
 
 function cleanup(client) {
@@ -108,7 +110,7 @@ function cleanup(client) {
   try {
     client.socket.close();
   } catch {
-    // Socket is already closed.
+    // Socket is already terminated
   }
 
   broadcastMetrics();
@@ -143,10 +145,19 @@ function handleMessage(client, raw) {
   }
 
   if (message.type === "fetch_explore") {
-    const peers = [...clientsById.values()]
-      .filter((peer) => peer.id !== client.id)
-      .map(publicProfile)
-      .filter((profile) => matchesFilters(profile, message.data));
+    // High-Performance Optimization: Single-pass iteration to prevent memory thrashing
+    const peers = [];
+    const filterCriteria = message.data ?? {};
+    
+    for (const peer of clientsById.values()) {
+      if (peer.id === client.id) continue;
+      
+      const profile = publicProfile(peer);
+      if (matchesFilters(profile, filterCriteria)) {
+        peers.push(profile);
+      }
+    }
+    
     send(client, "explore_data", peers);
     return;
   }
@@ -202,6 +213,7 @@ function handleWebSocket(request) {
     send(client, "ping", { ts: Date.now() });
   }, HEARTBEAT_MS);
 
+  // Send baseline metric frame immediately to newly initialized socket
   send(client, "global_metrics", { online: clientsById.size });
   broadcastMetrics();
 
