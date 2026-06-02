@@ -12,4 +12,15 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    plugins: [
+      {
+        name: 'force-exit-after-build',
+        apply: 'build',
+        closeBundle() {
+          setTimeout(() => process.exit(0), 0);
+        }
+      }
+    ]
+  }
 });
