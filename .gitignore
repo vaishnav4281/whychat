@@ -1,0 +1,9 @@
+node_modules/
+Frontend/node_modules/
+Backend/node_modules/
+.vercel/
+Frontend/.vercel/
+Backend/.wrangler/
+.env
+.env.local
+.env.*.local
