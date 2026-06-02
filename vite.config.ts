@@ -7,20 +7,12 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
+  nitro: {
+    preset: "vercel",
+  },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
   },
-  vite: {
-    plugins: [
-      {
-        name: 'force-exit-after-build',
-        apply: 'build',
-        closeBundle() {
-          setTimeout(() => process.exit(0), 0);
-        }
-      }
-    ]
-  }
 });
