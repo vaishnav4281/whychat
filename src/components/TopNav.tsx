@@ -20,7 +20,7 @@ export function TopNav({ profile, session, onSessionChange, onLogout, online = 1
           <div className="w-8 h-8 rounded-xl gradient-cyber flex items-center justify-center">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
-          <span className="font-bold tracking-tight">Pulse</span>
+          <span className="font-bold tracking-tight">WhyChat</span>
         </div>
 
         <nav className="glass-card rounded-full p-1 flex items-center gap-1">
