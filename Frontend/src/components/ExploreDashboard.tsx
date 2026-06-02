@@ -32,14 +32,15 @@ export function ExploreDashboard({ profile, session, onSessionChange, onLogout, 
   const [genderFilter, setGenderFilter] = useState<"all" | "M" | "F">("all");
   const [countryFilter, setCountryFilter] = useState<string>("all");
   const [langFilter, setLangFilter] = useState<string>("all");
-  const [online, setOnline] = useState(1247);
+  const [online, setOnline] = useState(0);
   const [sentTo, setSentTo] = useState<Set<string>>(new Set());
 
   // Connect to signaling and load initial local storage data
   useEffect(() => {
     signaling.connect().then(() => {
-      // Once connected, dispatch explore_data periodically or initially
-      discovery.fetchExplore({ gender: genderFilter, country: countryFilter, language: langFilter });
+      fetchExploreWithFilters();
+    }).catch((err) => {
+      console.error("Failed to connect to signaling server", err);
     });
 
     const updateStorageState = () => {
@@ -56,21 +57,30 @@ export function ExploreDashboard({ profile, session, onSessionChange, onLogout, 
     const handleMetrics = (e: CustomEvent<{ online: number }>) => {
       setOnline(e.detail.online);
     };
+    const handleConnected = () => {
+      fetchExploreWithFilters();
+    };
 
     window.addEventListener('whychat_storage_update', handleStorageUpdate);
     signaling.events.addEventListener('explore_data', handleExploreData as EventListener);
     signaling.events.addEventListener('global_metrics', handleMetrics as EventListener);
+    signaling.events.addEventListener('connected', handleConnected);
 
     return () => {
       window.removeEventListener('whychat_storage_update', handleStorageUpdate);
       signaling.events.removeEventListener('explore_data', handleExploreData as EventListener);
       signaling.events.removeEventListener('global_metrics', handleMetrics as EventListener);
+      signaling.events.removeEventListener('connected', handleConnected);
     };
   }, []);
 
+  const fetchExploreWithFilters = () => {
+    discovery.fetchExplore({ gender: genderFilter, country: countryFilter, language: langFilter });
+  };
+
   // Dispatch new fetch whenever filters change
   useEffect(() => {
-    discovery.fetchExplore({ gender: genderFilter, country: countryFilter, language: langFilter });
+    fetchExploreWithFilters();
   }, [genderFilter, countryFilter, langFilter]);
 
   const filtered = useMemo(() => {

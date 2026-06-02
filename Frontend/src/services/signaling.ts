@@ -42,15 +42,14 @@ export class SignalingService {
       this.url = url;
       this.demoMode = false;
     }
-    if (this.demoMode) {
+    if (this.demoMode || !this.url) {
+      if (!this.demoMode) {
+        this.demoMode = true;
+        console.warn('No signaling URL configured — using demo mode');
+      }
       this.events.dispatchEvent(new Event('connected'));
       this.joinPool();
       return Promise.resolve();
-    }
-    if (!this.url) {
-      return Promise.reject(
-        new Error('Missing VITE_SIGNALING_URL for WhyChat signaling service'),
-      );
     }
     if (this.ws?.readyState === WebSocket.OPEN) return Promise.resolve();
     if (this.connectPromise) return this.connectPromise;

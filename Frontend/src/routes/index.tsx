@@ -7,6 +7,7 @@ import { VideoSession } from "@/components/VideoSession";
 import { ChatsList } from "@/components/ChatsList";
 import { PersistentChat } from "@/components/PersistentChat";
 import { TopNav } from "@/components/TopNav";
+import { signaling } from "@/services/signaling";
 import { loadProfile, type PeerUser, type UserProfile } from "@/lib/peerStore";
 
 export const Route = createFileRoute("/")({
@@ -26,10 +27,16 @@ function Index() {
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<Session>("explore");
   const [openChat, setOpenChat] = useState<PeerUser | null>(null);
+  const [online, setOnline] = useState(0);
 
   useEffect(() => {
     setProfile(loadProfile());
     setReady(true);
+
+    const handleMetrics = (e: CustomEvent<{ online: number }>) => {
+      setOnline(e.detail.online);
+    };
+    signaling.events.addEventListener('global_metrics', handleMetrics as EventListener);
 
     const onRouteChat = (e: CustomEvent<{ peerId: string; peerDetails?: Partial<PeerUser> }>) => {
       const friends = JSON.parse(localStorage.getItem('whychat_friends') || '{}');
@@ -53,7 +60,10 @@ function Index() {
       setSession("chats");
     };
     window.addEventListener('whychat_route_chat', onRouteChat as EventListener);
-    return () => window.removeEventListener('whychat_route_chat', onRouteChat as EventListener);
+    return () => {
+      signaling.events.removeEventListener('global_metrics', handleMetrics as EventListener);
+      window.removeEventListener('whychat_route_chat', onRouteChat as EventListener);
+    };
   }, []);
 
   const goChat = (peer: PeerUser) => {
@@ -93,6 +103,7 @@ function Index() {
             session="chats"
             onSessionChange={setSession}
             onLogout={() => setProfile(null)}
+            online={online}
           />
           <div className="flex-1 flex w-full max-w-7xl mx-auto overflow-hidden px-4 md:px-8 pb-8 gap-4 md:gap-8 mt-4">
             {/* Chats List Sidebar */}
