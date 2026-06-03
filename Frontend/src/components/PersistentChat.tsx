@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Send, ImagePlus, Mic, Square, Play, UserPlus, Check, WifiOff, Bot } from "lucide-react";
+import { ArrowLeft, Send, ImagePlus, Mic, Square, Play, UserPlus, Check, Clock, WifiOff, Bot } from "lucide-react";
 import { flagFor, type PeerUser } from "@/lib/peerStore";
 import { StorageService, type ChatMessage } from "@/services/storage";
 import { webrtc } from "@/services/webrtc";
@@ -17,7 +17,7 @@ export function PersistentChat({ peer, onBack }: Props) {
   );
   const [draft, setDraft] = useState("");
   const [recording, setRecording] = useState(false);
-  const [isFriend, setIsFriend] = useState(false);
+  const [relState, setRelState] = useState<'none' | 'outgoing' | 'incoming' | 'friend'>('none');
   const [dcOnline, setDcOnline] = useState(false);
   const mediaRecRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -26,7 +26,16 @@ export function PersistentChat({ peer, onBack }: Props) {
 
   useEffect(() => {
     const friends = StorageService.getFriends();
-    setIsFriend(!!friends[peer.id]);
+    const reqs = StorageService.getRequests();
+    if (friends[peer.id]) {
+      setRelState('friend');
+    } else if (reqs.incoming.some((r) => r.id === peer.id)) {
+      setRelState('incoming');
+    } else if (reqs.outgoing.includes(peer.id)) {
+      setRelState('outgoing');
+    } else {
+      setRelState('none');
+    }
   }, [peer.id]);
 
   useEffect(() => {
@@ -61,7 +70,13 @@ export function PersistentChat({ peer, onBack }: Props) {
       }
       if (e.detail.key === 'whychat_friends') {
         const friends = e.detail.value;
-        setIsFriend(!!friends[peer.id]);
+        setRelState(friends[peer.id] ? 'friend' : (relState === 'friend' ? 'none' : relState));
+      }
+      if (e.detail.key === 'whychat_requests') {
+        const reqs = e.detail.value;
+        if (reqs.outgoing?.includes(peer.id)) setRelState('outgoing');
+        else if (reqs.incoming?.some((r: any) => r.id === peer.id)) setRelState('incoming');
+        else if (relState !== 'friend') setRelState('none');
       }
     };
 
@@ -162,7 +177,15 @@ export function PersistentChat({ peer, onBack }: Props) {
 
   const handleConnect = () => {
     discovery.sendFriendRequest(peer.id);
-    setIsFriend(true);
+    setRelState('outgoing');
+  };
+
+  const handleAcceptReq = () => {
+    discovery.acceptFriendRequest(peer.id, {
+      id: peer.id, name: peer.nickname,
+      avatar: peer.avatar, country: peer.country,
+    });
+    setRelState('friend');
   };
 
   return (
@@ -183,13 +206,24 @@ export function PersistentChat({ peer, onBack }: Props) {
             {!dcOnline && !peer.isBot && <WifiOff className="w-2.5 h-2.5 text-muted-foreground" />}
           </div>
         </div>
-        {!isFriend && (
+        {relState === 'none' && (
           <button onClick={handleConnect}
             className="btn-gradient text-[11px] md:text-xs font-semibold px-3 md:px-4 py-1.5 md:py-2 rounded-full flex items-center gap-1.5 shrink-0">
             <UserPlus className="w-3.5 h-3.5" /> Connect
           </button>
         )}
-        {isFriend && (
+        {relState === 'outgoing' && (
+          <div className="text-[11px] md:text-xs font-semibold px-3 md:px-4 py-1.5 md:py-2 rounded-full flex items-center gap-1.5 bg-secondary text-muted-foreground border border-border">
+            <Clock className="w-3.5 h-3.5" /> Pending
+          </div>
+        )}
+        {relState === 'incoming' && (
+          <button onClick={handleAcceptReq}
+            className="btn-gradient text-[11px] md:text-xs font-semibold px-3 md:px-4 py-1.5 md:py-2 rounded-full flex items-center gap-1.5 shrink-0">
+            <Check className="w-3.5 h-3.5" /> Accept
+          </button>
+        )}
+        {relState === 'friend' && (
           <div className="text-[11px] md:text-xs font-semibold px-3 md:px-4 py-1.5 md:py-2 rounded-full flex items-center gap-1.5 bg-gradient-to-r from-[#10B981] to-[#6EE7B7] text-white shadow-sm">
             <Check className="w-3.5 h-3.5" /> Friends
           </div>

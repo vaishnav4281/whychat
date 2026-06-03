@@ -17,44 +17,20 @@ const BOTS = [
   {
     id: 'bot-sophia', name: 'Sophia', nickname: 'Sophia',
     avatar: 'https://api.dicebear.com/9.x/adventurer/svg?seed=sophia',
-    country: 'US', flag: '🇺🇸', gender: 'female',
+    country: 'US', gender: 'female',
     languages: ['English'], isBot: true, behavior: 'reply_first',
   },
   {
     id: 'bot-maya', name: 'Maya', nickname: 'Maya',
     avatar: 'https://api.dicebear.com/9.x/adventurer/svg?seed=maya',
-    country: 'IN', flag: '🇮🇳', gender: 'female',
+    country: 'IN', gender: 'female',
     languages: ['Hindi', 'English'], isBot: true, behavior: 'dead',
-  },
-  {
-    id: 'bot-emma', name: 'Emma', nickname: 'Emma',
-    avatar: 'https://api.dicebear.com/9.x/adventurer/svg?seed=emma',
-    country: 'GB', flag: '🇬🇧', gender: 'female',
-    languages: ['English'], isBot: true, behavior: 'accept_friend',
-  },
-  {
-    id: 'bot-yuki', name: 'Yuki', nickname: 'Yuki',
-    avatar: 'https://api.dicebear.com/9.x/adventurer/svg?seed=yuki',
-    country: 'JP', flag: '🇯🇵', gender: 'female',
-    languages: ['Japanese'], isBot: true, behavior: 'reply_first',
-  },
-  {
-    id: 'bot-priya', name: 'Priya', nickname: 'Priya',
-    avatar: 'https://api.dicebear.com/9.x/adventurer/svg?seed=priya',
-    country: 'IN', flag: '🇮🇳', gender: 'female',
-    languages: ['Tamil', 'English'], isBot: true, behavior: 'dead',
   },
   {
     id: 'bot-arjun', name: 'Arjun', nickname: 'Arjun',
     avatar: 'https://api.dicebear.com/9.x/bottts/svg?seed=arjun',
-    country: 'IN', flag: '🇮🇳', gender: 'male',
+    country: 'IN', gender: 'male',
     languages: ['Hindi', 'English'], isBot: true, behavior: 'accept_friend',
-  },
-  {
-    id: 'bot-lucas', name: 'Lucas', nickname: 'Lucas',
-    avatar: 'https://api.dicebear.com/9.x/bottts/svg?seed=lucas',
-    country: 'BR', flag: '🇧🇷', gender: 'male',
-    languages: ['Portuguese', 'English'], isBot: true, behavior: 'reply_first',
   },
 ];
 
@@ -63,21 +39,6 @@ const BOT_REPLIES = {
     "Hey! Thanks for reaching out. I'm Sophia. What brings you to WhyChat?",
     "That's interesting! Tell me more about yourself.",
     "I love meeting new people. What are your hobbies?",
-  ],
-  'bot-yuki': [
-    "こんにちは！Nice to meet you!",
-    "I'm still learning English, please be patient with me!",
-    "Do you like Japanese culture?",
-  ],
-  'bot-lucas': [
-    "Olá! How are you doing today?",
-    "Brazil is amazing! Have you ever visited?",
-    "Nice chatting with you! I'm practicing my English.",
-  ],
-  'bot-emma': [
-    "Hi there! Lovely to connect with you!",
-    "Oh, that's so cool! I'm really into music and art.",
-    "What part of the world are you from?",
   ],
   'bot-arjun': [
     "Hey! What's up? Good to connect with you.",
@@ -109,6 +70,7 @@ export class SwitchboardDO {
     this.videoQueue     = new Set();
     this.rateLimits     = new Map();
     this._broadcastQueued = false;
+    this.totalVisits    = 0;
 
     this.CONNECTION_TTL     = 180_000;
     this.RATE_WINDOW        = 1_000;
@@ -155,7 +117,7 @@ export class SwitchboardDO {
       if (bot.behavior === 'dead') return;
       const sender = this.clientsById.get(data.id);
       if (!sender || sender.closed) return;
-      this.send(sender, 'FRIEND_REQ', {
+      this.send(sender, 'FRIEND_ACCEPT', {
         id: bot.id, name: bot.profile.name,
         avatar: bot.profile.avatar, country: bot.profile.country,
       });
@@ -184,9 +146,9 @@ export class SwitchboardDO {
         };
         this.send(sender, 'signal_relay', { peerId: bot.id, signal: fakeAnswer });
       } else if (signal.type === 'ice-candidate') {
-        // ignore ICE from real user to bot
+        // ignore
       } else if (signal.type === 'answer') {
-        // ignore answer (bot never creates offers)
+        // ignore
       }
     }
 
@@ -226,7 +188,7 @@ export class SwitchboardDO {
       for (const c of this.clientsBySocket.values()) {
         if (!c.closed) online++;
       }
-      const payload = { online };
+      const payload = { online, totalVisits: this.totalVisits };
       for (const c of this.clientsBySocket.values()) {
         if (!c.closed) this.send(c, 'global_metrics', payload);
       }
@@ -324,6 +286,14 @@ export class SwitchboardDO {
     this.videoQueue.add(client.id);
   }
 
+  countRealUsers() {
+    let count = 0;
+    for (const c of this.clientsById.values()) {
+      if (!c.closed && !c.isBot) count++;
+    }
+    return count;
+  }
+
   onMessage(client, raw) {
     this.touchIdle(client);
 
@@ -361,9 +331,15 @@ export class SwitchboardDO {
 
         if (client.id !== newId) this.clientsById.delete(client.id);
 
+        const isNew = !client.profile;
         client.id      = newId;
         client.profile = profile;
         this.clientsById.set(client.id, client);
+
+        if (isNew) {
+          this.totalVisits++;
+          console.log('[WhyChat] Total account creations:', this.totalVisits);
+        }
 
         this.queueBroadcast();
         break;
@@ -371,10 +347,13 @@ export class SwitchboardDO {
 
       case 'fetch_explore': {
         const filters = msg.data || {};
+        const realUserCount = this.countRealUsers();
+        const hideBots = realUserCount >= 2;
         const peers = [];
         for (const c of this.clientsById.values()) {
           if (c.id === client.id || c.closed) continue;
           if (!c.profile || (!c.profile.name && !c.profile.nickname)) continue;
+          if (c.isBot && hideBots) continue;
           const p = this.safeProfile(c);
           if (this.matchFilters(p, filters)) peers.push(p);
         }
@@ -442,7 +421,7 @@ export class SwitchboardDO {
     const url = new URL(request.url);
     if (url.pathname === '/health') {
       return Response.json(
-        { ok: true, online: this.clientsBySocket.size, queued: this.videoQueue.size },
+        { ok: true, online: this.clientsBySocket.size, queued: this.videoQueue.size, totalVisits: this.totalVisits },
         { headers: CORS }
       );
     }

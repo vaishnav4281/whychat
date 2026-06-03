@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
-import { MessageCircle, UserPlus, Check, Radio, Filter } from "lucide-react";
+import { MessageCircle, UserPlus, Check, Radio, Filter, Clock } from "lucide-react";
 import { COUNTRIES, LANGUAGES, flagFor, type PeerUser } from "@/lib/peerStore";
 import { StorageService, type Friend } from "@/services/storage";
 import { signaling } from "@/services/signaling";
@@ -14,6 +14,8 @@ interface Props {
 export function ExploreDashboard({ onOpenChat }: Props) {
   const [allPeers, setAllPeers] = useState<Array<Record<string, unknown>>>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [outgoing, setOutgoing] = useState<string[]>([]);
+  const [incomingReqs, setIncomingReqs] = useState<string[]>([]);
 
   const [genderFilter, setGenderFilter] = useState<"all" | "M" | "F">("all");
   const [countryFilter, setCountryFilter] = useState<string>("all");
@@ -42,12 +44,15 @@ export function ExploreDashboard({ onOpenChat }: Props) {
   useEffect(() => {
     signaling.connect().then(fetchExploreWithFilters).catch(() => {});
 
-    const updateStorageState = () => {
+    const syncState = () => {
       setFriends(Object.values(StorageService.getFriends()));
+      const reqs = StorageService.getRequests();
+      setOutgoing(reqs.outgoing);
+      setIncomingReqs(reqs.incoming.map((r) => r.id));
     };
-    updateStorageState();
+    syncState();
 
-    const handleStorageUpdate = () => updateStorageState();
+    const handleStorageUpdate = () => syncState();
     const handleExploreData = (e: CustomEvent<any[]>) => {
       setAllPeers(e.detail);
     };
@@ -86,6 +91,13 @@ export function ExploreDashboard({ onOpenChat }: Props) {
     discovery.sendFriendRequest(String(p.id));
   };
 
+  const handleAccept = (p: Record<string, unknown>) => {
+    discovery.acceptFriendRequest(String(p.id), {
+      id: String(p.id), name: String(p.name ?? p.nickname ?? ''),
+      avatar: String(p.avatar ?? ''), country: String(p.country ?? ''),
+    });
+  };
+
   const handleOpenChat = (p: Record<string, unknown>) => {
     discovery.initiateChat(String(p.id), p as unknown as PeerUser);
     onOpenChat(p as unknown as PeerUser);
@@ -93,7 +105,7 @@ export function ExploreDashboard({ onOpenChat }: Props) {
 
   return (
     <div className="p-3 md:p-6 pb-16 md:pb-6">
-      {/* Filter pills - compact on mobile */}
+      {/* Filter pills */}
       <div className="card-premium p-2 md:p-3 mb-4 flex items-center gap-1.5 md:gap-2 flex-nowrap md:flex-wrap overflow-x-auto">
         <Filter className="w-3.5 h-3.5 text-muted-foreground shrink-0 hidden md:block" />
         <PillSelect label="Gender" value={genderFilter} setValue={(v) => setGenderFilter(v as typeof genderFilter)}
@@ -112,11 +124,14 @@ export function ExploreDashboard({ onOpenChat }: Props) {
       {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 md:gap-4">
         {filtered.map((p, i) => {
-          const isFriend = friends.some((f) => f.id === p.id);
+          const pid = String(p.id);
+          const isFriend = friends.some((f) => f.id === pid);
+          const isOutgoing = outgoing.includes(pid);
+          const isIncoming = incomingReqs.includes(pid);
           const accentClass = ACCENT_CLASSES[i % ACCENT_CLASSES.length];
           return (
             <article
-              key={String(p.id)}
+              key={pid}
               style={{ animationDelay: `${i * 40}ms` }}
               className={`card-premium-hover ${accentClass} p-4 md:p-5 animate-in`}
             >
@@ -141,15 +156,24 @@ export function ExploreDashboard({ onOpenChat }: Props) {
                   className="btn-gradient text-[11px] md:text-xs font-semibold py-2 md:py-2.5 rounded-full flex items-center justify-center gap-1 md:gap-1.5">
                   <MessageCircle className="w-3 h-3 md:w-3.5 md:h-3.5" /> Message
                 </button>
-                {!isFriend ? (
+                {isFriend ? (
+                  <div className="text-[11px] md:text-xs font-semibold py-2 md:py-2.5 rounded-full flex items-center justify-center gap-1 md:gap-1.5 bg-gradient-to-r from-[#10B981] to-[#6EE7B7] text-white shadow-sm">
+                    <Check className="w-3 h-3 md:w-3.5 md:h-3.5" /> Friends
+                  </div>
+                ) : isIncoming ? (
+                  <button onClick={() => handleAccept(p)}
+                    className="btn-gradient text-[11px] md:text-xs font-semibold py-2 md:py-2.5 rounded-full flex items-center justify-center gap-1 md:gap-1.5">
+                    <Check className="w-3 h-3 md:w-3.5 md:h-3.5" /> Accept
+                  </button>
+                ) : isOutgoing ? (
+                  <div className="text-[11px] md:text-xs font-semibold py-2 md:py-2.5 rounded-full flex items-center justify-center gap-1 md:gap-1.5 bg-secondary text-muted-foreground border border-border">
+                    <Clock className="w-3 h-3 md:w-3.5 md:h-3.5" /> Pending
+                  </div>
+                ) : (
                   <button onClick={() => connectReq(p)}
                     className="btn-secondary text-[11px] md:text-xs font-semibold py-2 md:py-2.5 rounded-full flex items-center justify-center gap-1 md:gap-1.5">
                     <UserPlus className="w-3 h-3 md:w-3.5 md:h-3.5" /> Connect
                   </button>
-                ) : (
-                  <div className="text-[11px] md:text-xs font-semibold py-2 md:py-2.5 rounded-full flex items-center justify-center gap-1 md:gap-1.5 bg-gradient-to-r from-[#10B981] to-[#6EE7B7] text-white shadow-sm">
-                    <Check className="w-3 h-3 md:w-3.5 md:h-3.5" /> Friends
-                  </div>
                 )}
               </div>
             </article>
