@@ -1,7 +1,7 @@
-# MeetWithStrangers — Global Chat Platform
+# MetWithStrangers — Global Chat Platform
 
 ## About
-MeetWithStrangers is a free, instant messaging platform to meet strangers from 150+ countries. Practice languages, make friends, and explore cultures — no signup required, no data stored on servers.
+MetWithStrangers is a free, instant messaging platform to meet strangers from 150+ countries. Practice languages, make friends, and explore cultures — no signup required, no data stored on servers.
 
 ## Key Features
 - Instant matching with people worldwide

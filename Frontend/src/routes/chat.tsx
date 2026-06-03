@@ -13,7 +13,7 @@ import { signaling } from "@/services/signaling";
 export const Route = createFileRoute("/chat")({
   head: () => ({
     meta: [
-      { title: "Chat — MeetWithStrangers" },
+      { title: "Chat — MetWithStrangers" },
       { name: "robots", content: "noindex" },
     ],
   }),

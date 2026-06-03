@@ -1,6 +1,6 @@
-# MeetWithStrangers Switchboard
+# MetWithStrangers Switchboard
 
-Cloudflare Worker WebSocket relay for MeetWithStrangers. It keeps only temporary in-memory state:
+Cloudflare Worker WebSocket relay for MetWithStrangers. It keeps only temporary in-memory state:
 
 - online socket/profile maps
 - explore presence
