@@ -8,6 +8,7 @@ type SignalEventMap = {
   'CHAT_INIT': CustomEvent<{ peerId: string; peerDetails: any }>;
   'FRIEND_REQ': CustomEvent<{ id: string; name: string; avatar: string; country: string }>;
   'FRIEND_ACCEPT': CustomEvent<{ peerId: string; peerDetails: any }>;
+  'BOT_MSG': CustomEvent<{ from: string; text: string; ts: number }>;
   'pool_update': Event;
   'connected': Event;
   'disconnected': Event;
@@ -25,10 +26,11 @@ export class SignalingService {
   private ws: WebSocket | null = null;
   private url: string = import.meta.env.VITE_SIGNALING_URL ?? '';
   public events = new EventTarget() as SignalingEventTarget;
-  private reconnectInterval = 5000;
   private connectPromise: Promise<void> | null = null;
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+  private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private connected = false;
+  private shouldReconnect = false;
 
   private constructor() {}
 
@@ -54,6 +56,8 @@ export class SignalingService {
 
     if (this.ws?.readyState === WebSocket.OPEN) return Promise.resolve();
     if (this.connectPromise) return this.connectPromise;
+
+    this.shouldReconnect = true;
 
     this.connectPromise = new Promise((resolve) => {
       try {
@@ -82,7 +86,7 @@ export class SignalingService {
             if (this.ws?.readyState === WebSocket.OPEN) {
               this.ws.send(JSON.stringify({ type: 'ping' }));
             }
-          }, 20000);
+          }, 25000);
           resolve();
         };
 
@@ -91,13 +95,19 @@ export class SignalingService {
         };
 
         this.ws.onclose = () => {
+          const wasConnected = this.connected;
           this.connected = false;
-          this.events.dispatchEvent(new Event('disconnected'));
           this.ws = null;
           this.connectPromise = null;
           if (this.heartbeatInterval) {
             clearInterval(this.heartbeatInterval);
             this.heartbeatInterval = null;
+          }
+          this.events.dispatchEvent(new Event('disconnected'));
+          if (wasConnected && this.shouldReconnect) {
+            this.reconnectTimeout = setTimeout(() => {
+              this.connect();
+            }, 3000);
           }
         };
 
@@ -111,9 +121,28 @@ export class SignalingService {
     return this.connectPromise;
   }
 
+  public disconnect() {
+    this.shouldReconnect = false;
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+    if (this.ws) {
+      this.ws.onclose = null;
+      this.ws.close();
+      this.ws = null;
+    }
+    this.connected = false;
+    this.connectPromise = null;
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+  }
+
   private static ALLOWED_EVENTS = new Set([
     'global_metrics', 'explore_data', 'match_found', 'signal_relay',
-    'pool_update', 'FRIEND_REQ', 'FRIEND_ACCEPT', 'CHAT_INIT', 'error',
+    'pool_update', 'FRIEND_REQ', 'FRIEND_ACCEPT', 'CHAT_INIT', 'BOT_MSG', 'error',
   ]);
 
   private handleMessage(data: string) {

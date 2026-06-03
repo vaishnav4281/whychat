@@ -1,10 +1,13 @@
 import { signaling } from './signaling';
+import { StorageService } from './storage';
 
 export class WebRTCService {
   private peerConnection: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
   private dataChannel: RTCDataChannel | null = null;
   private partnerId: string | null = null;
+  private expectedPeerId: string | null = null;
+  private messageQueue: string[] = [];
 
   private readonly CHUNK_SIZE = 16384;
   private incomingMedia: {
@@ -18,10 +21,20 @@ export class WebRTCService {
     this.setupListeners();
   }
 
+  public get dcReady(): boolean {
+    return this.dataChannel?.readyState === 'open';
+  }
+
   private setupListeners() {
     signaling.events.addEventListener('signal_relay', ((e: CustomEvent<{ peerId: string; signal: any }>) => {
-      this.handleSignal(e.detail.signal);
+      this.handleSignal(e.detail.signal, e.detail.peerId);
     }) as EventListener);
+
+    signaling.events.addEventListener('connected', () => {
+      if (this.expectedPeerId && (!this.dataChannel || this.dataChannel.readyState !== 'open')) {
+        this.establishDataConnection(this.expectedPeerId, false);
+      }
+    });
   }
 
   public setLocalStream(stream: MediaStream) {
@@ -47,46 +60,49 @@ export class WebRTCService {
       this.peerConnection = null;
     }
     this.partnerId = null;
+    this.expectedPeerId = null;
+    this.messageQueue = [];
     this.incomingMedia = { chunks: [], mimeType: '', name: '', receiving: false };
     window.dispatchEvent(new Event('whychat_video_cleanup'));
   }
 
-  /**
-   * Establish a WebRTC data channel for chat.
-   * @param peerId  The remote peer's ID
-   * @param initiate  true = create & send offer; false = wait for incoming offer
-   */
   public async establishDataConnection(peerId: string, initiate: boolean = true) {
-    if (this.peerConnection) {
+    if (this.partnerId === peerId && this.dataChannel?.readyState === 'open') return;
+
+    this.expectedPeerId = peerId;
+
+    if (this.peerConnection && this.partnerId !== peerId) {
       this.closeConnections();
     }
 
-    this.partnerId = peerId;
+    if (!this.peerConnection) {
+      this.partnerId = peerId;
 
-    const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-    this.peerConnection = new RTCPeerConnection(configuration);
+      const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+      this.peerConnection = new RTCPeerConnection(configuration);
 
-    this.peerConnection.onicecandidate = (event) => {
-      if (event.candidate) {
-        signaling.send({
-          type: 'signal_relay',
-          target: this.partnerId,
-          data: { type: 'ice-candidate', candidate: event.candidate }
-        });
-      }
-    };
+      this.peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          signaling.send({
+            type: 'signal_relay',
+            target: this.partnerId,
+            data: { type: 'ice-candidate', candidate: event.candidate }
+          });
+        }
+      };
 
-    this.peerConnection.onconnectionstatechange = () => {
-      if (
-        this.peerConnection?.connectionState === 'disconnected' ||
-        this.peerConnection?.connectionState === 'failed' ||
-        this.peerConnection?.connectionState === 'closed'
-      ) {
-        window.dispatchEvent(new Event('whychat_partner_left'));
-      }
-    };
+      this.peerConnection.onconnectionstatechange = () => {
+        if (
+          this.peerConnection?.connectionState === 'disconnected' ||
+          this.peerConnection?.connectionState === 'failed' ||
+          this.peerConnection?.connectionState === 'closed'
+        ) {
+          window.dispatchEvent(new Event('whychat_partner_left'));
+        }
+      };
+    }
 
-    if (initiate) {
+    if (initiate && (!this.dataChannel || this.dataChannel.readyState !== 'open')) {
       this.dataChannel = this.peerConnection.createDataChannel('whychat_data');
       this.setupDataChannel();
 
@@ -98,7 +114,7 @@ export class WebRTCService {
         target: this.partnerId,
         data: { type: 'offer', offer }
       });
-    } else {
+    } else if (!initiate && !this.dataChannel) {
       this.peerConnection.ondatachannel = (event) => {
         this.dataChannel = event.channel;
         this.setupDataChannel();
@@ -106,11 +122,19 @@ export class WebRTCService {
     }
   }
 
-  private async handleSignal(signal: any) {
+  private async handleSignal(signal: any, fromPeerId?: string) {
     if (!this.peerConnection) return;
 
     try {
       if (signal.type === 'offer') {
+        if (this.peerConnection.localDescription?.type === 'offer' && fromPeerId) {
+          const myProfile = StorageService.getProfile();
+          if (myProfile && myProfile.id < fromPeerId) {
+            return;
+          }
+          await this.peerConnection.setLocalDescription({ type: 'rollback' });
+        }
+        if (this.peerConnection.signalingState === 'stable') return;
         await this.peerConnection.setRemoteDescription(new RTCSessionDescription(signal.offer));
         const answer = await this.peerConnection.createAnswer();
         await this.peerConnection.setLocalDescription(answer);
@@ -121,9 +145,12 @@ export class WebRTCService {
           data: { type: 'answer', answer }
         });
       } else if (signal.type === 'answer') {
+        if (this.peerConnection.signalingState === 'stable') return;
         await this.peerConnection.setRemoteDescription(new RTCSessionDescription(signal.answer));
       } else if (signal.type === 'ice-candidate') {
-        await this.peerConnection.addIceCandidate(new RTCIceCandidate(signal.candidate));
+        if (signal.candidate) {
+          await this.peerConnection.addIceCandidate(new RTCIceCandidate(signal.candidate));
+        }
       }
     } catch (e) {
       console.error("WebRTC signal handling failed", e);
@@ -135,7 +162,21 @@ export class WebRTCService {
 
     this.dataChannel.binaryType = 'arraybuffer';
 
-    this.dataChannel.onopen = () => console.log('Data channel opened');
+    this.dataChannel.onopen = () => {
+      while (this.messageQueue.length) {
+        const msg = this.messageQueue.shift()!;
+        this.dataChannel!.send(msg);
+      }
+      window.dispatchEvent(new CustomEvent('whychat_dc_status', { detail: { status: 'open', peerId: this.partnerId } }));
+    };
+
+    this.dataChannel.onclose = () => {
+      window.dispatchEvent(new CustomEvent('whychat_dc_status', { detail: { status: 'closed', peerId: this.partnerId } }));
+      if (this.expectedPeerId) {
+        setTimeout(() => this.establishDataConnection(this.expectedPeerId!, false), 1000);
+      }
+    };
+
     this.dataChannel.onmessage = (event) => {
       if (typeof event.data === 'string') {
         this.handleTextMessage(event.data);
@@ -183,7 +224,10 @@ export class WebRTCService {
   }
 
   public async sendFile(file: File) {
-    if (!this.dataChannel || this.dataChannel.readyState !== 'open') return;
+    if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
+      console.warn('Data channel not open, file not sent');
+      return;
+    }
 
     this.dataChannel.send(JSON.stringify({ type: 'MEDIA_START', mimeType: file.type, name: file.name }));
 
@@ -199,10 +243,14 @@ export class WebRTCService {
     this.dataChannel.send(JSON.stringify({ type: 'MEDIA_END' }));
   }
 
-  public sendText(text: string) {
+  public sendText(text: string): boolean {
+    const payload = JSON.stringify({ type: 'TEXT', content: text });
     if (this.dataChannel && this.dataChannel.readyState === 'open') {
-      this.dataChannel.send(JSON.stringify({ type: 'TEXT', content: text }));
+      this.dataChannel.send(payload);
+      return true;
     }
+    this.messageQueue.push(payload);
+    return false;
   }
 }
 

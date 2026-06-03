@@ -12,6 +12,7 @@ export interface UserProfile {
 
 export interface PeerUser extends UserProfile {
   online: boolean;
+  isBot?: boolean;
 }
 
 export const avatarFor = (gender: Gender, seed: string) =>

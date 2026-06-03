@@ -1,17 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useRef } from "react";
-import { Sparkles, Globe2, Shield, Users, ArrowRight, Languages } from "lucide-react";
+import { Sparkles, Globe2, Shield, Users, ArrowRight, Languages, Compass, ArrowLeft } from "lucide-react";
 import { MeshBackdrop } from "@/components/MeshBackdrop";
-import { RegistrationCard } from "@/components/RegistrationCard";
-import { ExploreDashboard } from "@/components/ExploreDashboard";
-import { ChatsList } from "@/components/ChatsList";
-import { PersistentChat } from "@/components/PersistentChat";
-import { FriendsTab } from "@/components/FriendsTab";
-import { TopNav } from "@/components/TopNav";
-import { BottomNav, type Tab } from "@/components/BottomNav";
 import { StorageService } from "@/services/storage";
-import { COUNTRIES, LANGUAGES, flagFor, avatarFor, type Gender, type UserProfile, type PeerUser } from "@/lib/peerStore";
-import { signaling } from "@/services/signaling";
+import { COUNTRIES, LANGUAGES, flagFor, avatarFor, type Gender, type UserProfile } from "@/lib/peerStore";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -55,12 +47,10 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
-  component: Index,
+  component: Landing,
 });
 
-/* ───── Landing Page ───── */
-
-function LandingHero({ onGetStarted }: { onGetStarted: () => void }) {
+function LandingHero({ onGetStarted, hasSession }: { onGetStarted: () => void; hasSession: boolean }) {
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center px-6 text-center">
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -96,7 +86,7 @@ function LandingHero({ onGetStarted }: { onGetStarted: () => void }) {
 
         <button onClick={onGetStarted}
           className="btn-gradient px-10 py-5 text-lg font-bold text-center flex items-center gap-3 shadow-xl shadow-[#7C3AED]/30 mx-auto mb-4 animate-in">
-          Create Your Profile — It's Free <ArrowRight className="w-5 h-5" />
+          {hasSession ? 'Continue to Chat' : "Create Your Profile — It's Free"} <ArrowRight className="w-5 h-5" />
         </button>
         <p className="text-xs text-muted-foreground mb-16">No signup, no download, no data stored. Just pick a name and start.</p>
 
@@ -211,48 +201,6 @@ function CountriesSection() {
   );
 }
 
-function CTASection({ onGetStarted }: { onGetStarted: () => void }) {
-  return (
-    <section className="px-6 py-24 md:py-32">
-      <div className="max-w-3xl mx-auto text-center card-premium card-accent-top p-12 md:p-16">
-        <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4 text-balance">
-          Ready to meet the world?
-        </h2>
-        <p className="text-muted-foreground max-w-lg mx-auto mb-8">
-          Join thousands of people already connecting on WhyChat. No signup, no download — just open your browser and start chatting.
-        </p>
-        <div className="flex items-center justify-center gap-4">
-          <button onClick={onGetStarted}
-            className="btn-gradient px-8 py-4 text-base font-semibold inline-flex items-center gap-2 shadow-lg shadow-[#7C3AED]/25">
-            Get Started Free <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function LandingFooter() {
-  return (
-    <footer className="border-t border-border px-6 py-8">
-      <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-[#7C3AED]" />
-          <span className="font-bold bg-gradient-to-r from-[#7C3AED] to-[#EC4899] bg-clip-text text-transparent">WhyChat</span>
-        </div>
-        <div className="flex items-center gap-6 text-xs text-muted-foreground">
-          <span>© 2026 WhyChat</span>
-          <a href="#" className="hover:text-foreground transition">Privacy</a>
-          <a href="#" className="hover:text-foreground transition">Terms</a>
-          <a href="#" className="hover:text-foreground transition">Contact</a>
-        </div>
-      </div>
-    </footer>
-  );
-}
-
-/* ───── Registration Section ───── */
-
 function MiniRegistrationCard({ onComplete }: { onComplete: (p: UserProfile) => void }) {
   const [nickname, setNickname] = useState("");
   const [country, setCountry] = useState(COUNTRIES[0].name);
@@ -323,133 +271,94 @@ function MiniRegistrationCard({ onComplete }: { onComplete: (p: UserProfile) => 
   );
 }
 
-/* ───── Main App ───── */
-
-function MainApp() {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [tab, setTab] = useState<Tab>("explore");
-  const [openChat, setOpenChat] = useState<PeerUser | null>(null);
-  const [online, setOnline] = useState(0);
-
-  useEffect(() => {
-    const p = StorageService.getProfile() as UserProfile | null;
-    setProfile(p);
-  }, []);
-
-  useEffect(() => {
-    if (!profile) return;
-    const handleMetrics = (e: CustomEvent<{ online: number }>) => setOnline(e.detail.online);
-    signaling.events.addEventListener('global_metrics', handleMetrics as EventListener);
-    const onRouteChat = (e: CustomEvent<{ peerId: string; peerDetails?: Partial<PeerUser> }>) => {
-      const friends = JSON.parse(localStorage.getItem('whychat_friends') || '{}');
-      const friend = friends[e.detail.peerId];
-      const peerDetails = e.detail.peerDetails ?? friend;
-      if (!peerDetails) return;
-      setOpenChat({
-        ...peerDetails, id: e.detail.peerId,
-        name: peerDetails.name ?? peerDetails.nickname ?? 'Stranger',
-        nickname: peerDetails.nickname ?? peerDetails.name ?? 'Stranger',
-        gender: peerDetails.gender ?? 'M', languages: peerDetails.languages ?? [],
-        country: peerDetails.country ?? 'Unknown',
-        avatar: peerDetails.avatar ?? 'https://api.dicebear.com/7.x/bottts/svg?seed=' + e.detail.peerId,
-        online: true,
-      } as PeerUser);
-      setTab("chats");
-    };
-    window.addEventListener('whychat_route_chat', onRouteChat as EventListener);
-    return () => {
-      signaling.events.removeEventListener('global_metrics', handleMetrics as EventListener);
-      window.removeEventListener('whychat_route_chat', onRouteChat as EventListener);
-    };
-  }, [profile]);
-
-  const [requests, setRequests] = useState(0);
-  useEffect(() => {
-    const update = () => setRequests(StorageService.getRequests().incoming.length);
-    update();
-    window.addEventListener('whychat_storage_update', update);
-    return () => window.removeEventListener('whychat_storage_update', update);
-  }, []);
-
-  const goChat = (peer: PeerUser) => { setOpenChat(peer); setTab("chats"); };
-
-  if (!profile) return null;
-
+function CTASection({ onGetStarted, hasSession }: { onGetStarted: () => void; hasSession: boolean }) {
   return (
-    <>
-      <TopNav profile={profile} onLogout={() => setProfile(null)} online={online} />
-      <main className="flex-1 flex flex-col overflow-hidden pb-14">
-        <div className={tab !== "explore" ? "hidden" : "flex-1 overflow-y-auto"}>
-          <ExploreDashboard onOpenChat={goChat} />
+    <section className="px-6 py-24 md:py-32">
+      <div className="max-w-3xl mx-auto text-center card-premium card-accent-top p-12 md:p-16">
+        <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4 text-balance">
+          Ready to meet the world?
+        </h2>
+        <p className="text-muted-foreground max-w-lg mx-auto mb-8">
+          Join thousands of people already connecting on WhyChat. No signup, no download — just open your browser and start chatting.
+        </p>
+        <div className="flex items-center justify-center gap-4">
+          <button onClick={onGetStarted}
+            className="btn-gradient px-8 py-4 text-base font-semibold inline-flex items-center gap-2 shadow-lg shadow-[#7C3AED]/25">
+            {hasSession ? 'Continue to Chat' : 'Get Started Free'} <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
-        <div className={tab !== "chats" ? "hidden" : "flex-1 flex overflow-hidden"}>
-          {!openChat ? (
-            <div className="flex-1 overflow-y-auto">
-              <ChatsList onOpenChat={goChat} />
-            </div>
-          ) : (
-            <>
-              <div className="w-80 hidden md:flex flex-col overflow-y-auto border-r border-border">
-                <ChatsList onOpenChat={goChat} />
-              </div>
-              <div className="flex-1 flex flex-col overflow-hidden">
-                <PersistentChat peer={openChat} onBack={() => setOpenChat(null)} />
-              </div>
-            </>
-          )}
-        </div>
-        <div className={tab !== "friends" ? "hidden" : "flex-1 overflow-y-auto"}>
-          <FriendsTab onOpenChat={goChat} />
-        </div>
-      </main>
-      <BottomNav tab={tab} onTabChange={setTab} badge={requests} />
-    </>
+      </div>
+    </section>
   );
 }
 
-/* ───── Index ───── */
+function LandingFooter() {
+  return (
+    <footer className="border-t border-border px-6 py-8">
+      <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-[#7C3AED]" />
+          <span className="font-bold bg-gradient-to-r from-[#7C3AED] to-[#EC4899] bg-clip-text text-transparent">WhyChat</span>
+        </div>
+        <div className="flex items-center gap-6 text-xs text-muted-foreground">
+          <span>© 2026 WhyChat</span>
+          <a href="#" className="hover:text-foreground transition">Privacy</a>
+          <a href="#" className="hover:text-foreground transition">Terms</a>
+          <a href="#" className="hover:text-foreground transition">Contact</a>
+        </div>
+      </div>
+    </footer>
+  );
+}
 
-function Index() {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+function Landing() {
+  const navigate = useNavigate();
   const [ready, setReady] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
   const registerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    setProfile(StorageService.getProfile() as UserProfile | null);
+    const p = StorageService.getProfile();
+    setHasSession(!!p);
     setReady(true);
   }, []);
 
+  const goToChat = () => navigate({ to: '/chat' });
+
   const scrollToRegister = () => {
+    if (hasSession) {
+      goToChat();
+      return;
+    }
     setShowRegister(true);
     setTimeout(() => {
       registerRef.current?.scrollIntoView({ behavior: "smooth" });
     }, 100);
   };
 
-  if (!ready) return <><MeshBackdrop /><div className="min-h-screen" /></>;
+  const onRegistered = (profile: UserProfile) => {
+    goToChat();
+  };
 
-  if (profile) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <MeshBackdrop />
-        <MainApp />
-      </div>
-    );
-  }
+  if (!ready) return <><MeshBackdrop /><div className="min-h-screen" /></>;
 
   return (
     <>
       <MeshBackdrop />
       <div className="min-h-screen flex flex-col">
-        <LandingHero onGetStarted={scrollToRegister} />
-        <FeaturesSection />
-        <HowItWorksSection onGetStarted={scrollToRegister} />
-        <CountriesSection />
-        <section ref={registerRef}>
-          <MiniRegistrationCard onComplete={setProfile} />
-        </section>
-        <CTASection onGetStarted={scrollToRegister} />
+        <LandingHero onGetStarted={scrollToRegister} hasSession={hasSession} />
+        {!hasSession && (
+          <>
+            <FeaturesSection />
+            <HowItWorksSection onGetStarted={scrollToRegister} />
+            <CountriesSection />
+            <section ref={registerRef}>
+              <MiniRegistrationCard onComplete={onRegistered} />
+            </section>
+          </>
+        )}
+        <CTASection onGetStarted={scrollToRegister} hasSession={hasSession} />
         <LandingFooter />
       </div>
     </>

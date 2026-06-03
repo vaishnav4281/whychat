@@ -19,6 +19,11 @@ export class DiscoveryService {
   private setupListeners() {
     signaling.events.addEventListener('CHAT_INIT', ((e: CustomEvent<{ peerId: string; peerDetails: any }>) => this.handleChatInit(e)) as EventListener);
     signaling.events.addEventListener('FRIEND_REQ', ((e: CustomEvent<{ id: string; name: string, avatar: string, country: string }>) => this.handleFriendReq(e)) as EventListener);
+    signaling.events.addEventListener('BOT_MSG', ((e: CustomEvent<{ from: string; text: string; ts: number }>) => {
+      window.dispatchEvent(new CustomEvent('whychat_text_received', {
+        detail: { text: e.detail.text, sender: e.detail.from }
+      }));
+    }) as EventListener);
   }
 
   public fetchExplore(filters: { gender?: string; country?: string; language?: string }) {
@@ -65,7 +70,18 @@ export class DiscoveryService {
 
   private handleChatInit(e: CustomEvent<{ peerId: string; peerDetails: any }>) {
     const { peerId, peerDetails } = e.detail;
-    this._chatInitiatorFor = null;
+    const myProfile = StorageService.getProfile();
+
+    if (this._chatInitiatorFor === peerId && myProfile) {
+      if (myProfile.id < peerId) {
+        this._chatInitiatorFor = peerId;
+      } else {
+        this._chatInitiatorFor = null;
+      }
+    } else {
+      this._chatInitiatorFor = null;
+    }
+
     window.dispatchEvent(
       new CustomEvent('whychat_route_chat', {
         detail: { peerId, peerDetails },

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Send, ImagePlus, Mic, Square, Play, UserPlus, Check } from "lucide-react";
+import { ArrowLeft, Send, ImagePlus, Mic, Square, Play, UserPlus, Check, WifiOff, Bot } from "lucide-react";
 import { flagFor, type PeerUser } from "@/lib/peerStore";
 import { StorageService, type ChatMessage } from "@/services/storage";
 import { webrtc } from "@/services/webrtc";
+import { signaling } from "@/services/signaling";
 import { discovery } from "@/services/discovery";
 
 interface Props {
@@ -17,6 +18,7 @@ export function PersistentChat({ peer, onBack }: Props) {
   const [draft, setDraft] = useState("");
   const [recording, setRecording] = useState(false);
   const [isFriend, setIsFriend] = useState(false);
+  const [dcOnline, setDcOnline] = useState(false);
   const mediaRecRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const feedRef = useRef<HTMLDivElement>(null);
@@ -28,14 +30,28 @@ export function PersistentChat({ peer, onBack }: Props) {
   }, [peer.id]);
 
   useEffect(() => {
+    setMessages(StorageService.getChatHistory(peer.id));
+    feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: "smooth" });
+
+    if (peer.isBot) {
+      setDcOnline(true);
+      discovery.clearInitiator();
+      return;
+    }
+
     const initiate = discovery.chatInitiatorFor === peer.id;
     webrtc.establishDataConnection(peer.id, initiate);
     discovery.clearInitiator();
-    setMessages(StorageService.getChatHistory(peer.id));
-    feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: "smooth" });
+    setDcOnline(webrtc.dcReady);
   }, [peer.id]);
 
   useEffect(() => {
+    const handleDcStatus = (e: CustomEvent<{ status: string; peerId: string }>) => {
+      if (e.detail.peerId === peer.id) {
+        setDcOnline(e.detail.status === 'open');
+      }
+    };
+
     const handleStorageUpdate = (e: CustomEvent<{ key: string, value: any }>) => {
       if (e.detail.key === 'whychat_chats') {
         const chats = e.detail.value;
@@ -71,15 +87,17 @@ export function PersistentChat({ peer, onBack }: Props) {
       }
     };
 
+    window.addEventListener('whychat_dc_status', handleDcStatus as EventListener);
     window.addEventListener('whychat_storage_update', handleStorageUpdate as EventListener);
     window.addEventListener('whychat_text_received', handleTextRecv as EventListener);
     window.addEventListener('whychat_media_received', handleMediaRecv as EventListener);
 
     return () => {
+      window.removeEventListener('whychat_dc_status', handleDcStatus as EventListener);
       window.removeEventListener('whychat_storage_update', handleStorageUpdate as EventListener);
       window.removeEventListener('whychat_text_received', handleTextRecv as EventListener);
       window.removeEventListener('whychat_media_received', handleMediaRecv as EventListener);
-      webrtc.closeConnections();
+      if (!peer.isBot) webrtc.closeConnections();
     };
   }, [peer.id]);
 
@@ -98,12 +116,18 @@ export function PersistentChat({ peer, onBack }: Props) {
 
   const send = () => {
     if (!draft.trim()) return;
-    webrtc.sendText(draft.trim());
+    if (peer.isBot) {
+      const profile = StorageService.getProfile();
+      signaling.send({ type: 'BOT_MSG', target: peer.id, data: { text: draft.trim(), from: profile?.id } });
+    } else {
+      webrtc.sendText(draft.trim());
+    }
     pushLocal({ type: "text", content: draft.trim() });
     setDraft("");
   };
 
   const onFile = async (f: File) => {
+    if (peer.isBot) return;
     webrtc.sendFile(f);
     const localUrl = URL.createObjectURL(f);
     pushLocal({ type: "image", content: localUrl });
@@ -151,9 +175,12 @@ export function PersistentChat({ peer, onBack }: Props) {
         <img src={peer.avatar} alt="" className="w-9 h-9 md:w-11 md:h-11 rounded-full bg-secondary ring-2 ring-[#D8D0F5]" />
         <div className="flex-1 min-w-0">
           <div className="font-bold tracking-tight truncate text-sm md:text-base">{peer.nickname}</div>
-          <div className="tag-premium !text-[9px] md:!text-[10px]">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block mr-1.5 align-middle" />
+          <div className="tag-premium !text-[9px] md:!text-[10px] flex items-center gap-1.5">
+            <span className={`w-1.5 h-1.5 rounded-full inline-block ${dcOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
+            {peer.isBot && <Bot className="w-2.5 h-2.5 text-purple-500" />}
             {flagFor(peer.country)} {peer.country}
+            {peer.isBot && <span className="text-purple-500 font-semibold">Bot</span>}
+            {!dcOnline && !peer.isBot && <WifiOff className="w-2.5 h-2.5 text-muted-foreground" />}
           </div>
         </div>
         {!isFriend && (
@@ -173,7 +200,10 @@ export function PersistentChat({ peer, onBack }: Props) {
       <div ref={feedRef} className="flex-1 overflow-y-auto px-3 md:px-5 py-4 md:py-6 space-y-3 bg-[#FAFAFE]">
         {messages.length === 0 && (
           <div className="text-center text-sm text-muted-foreground py-12">
-            Say hi to {peer.nickname}
+            {peer.isBot
+              ? `${peer.nickname} is a bot — say hi to see a reply!`
+              : `Say hi to ${peer.nickname}`
+            }
           </div>
         )}
         {messages.map((m) => (
