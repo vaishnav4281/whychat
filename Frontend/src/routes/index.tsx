@@ -2,10 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { MeshBackdrop } from "@/components/MeshBackdrop";
 import { RegistrationCard } from "@/components/RegistrationCard";
-import { ExploreDashboard, type Session } from "@/components/ExploreDashboard";
+import { ExploreDashboard } from "@/components/ExploreDashboard";
 import { ChatsList } from "@/components/ChatsList";
 import { PersistentChat } from "@/components/PersistentChat";
+import { FriendsTab } from "@/components/FriendsTab";
 import { TopNav } from "@/components/TopNav";
+import { BottomNav, type Tab } from "@/components/BottomNav";
 import { StorageService } from "@/services/storage";
 import { signaling } from "@/services/signaling";
 import { type PeerUser, type UserProfile } from "@/lib/peerStore";
@@ -25,7 +27,7 @@ export const Route = createFileRoute("/")({
 function Index() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [ready, setReady] = useState(false);
-  const [session, setSession] = useState<Session>("explore");
+  const [tab, setTab] = useState<Tab>("explore");
   const [openChat, setOpenChat] = useState<PeerUser | null>(null);
   const [online, setOnline] = useState(0);
 
@@ -57,18 +59,27 @@ function Index() {
           'https://api.dicebear.com/7.x/bottts/svg?seed=' + e.detail.peerId,
         online: true,
       } as PeerUser);
-      setSession("chats");
+      setTab("chats");
     };
     window.addEventListener('whychat_route_chat', onRouteChat as EventListener);
+
     return () => {
       signaling.events.removeEventListener('global_metrics', handleMetrics as EventListener);
       window.removeEventListener('whychat_route_chat', onRouteChat as EventListener);
     };
   }, []);
 
+  const [requests, setRequests] = useState(0);
+  useEffect(() => {
+    const update = () => setRequests(StorageService.getRequests().incoming.length);
+    update();
+    window.addEventListener('whychat_storage_update', update);
+    return () => window.removeEventListener('whychat_storage_update', update);
+  }, []);
+
   const goChat = (peer: PeerUser) => {
     setOpenChat(peer);
-    setSession("chats");
+    setTab("chats");
   };
 
   if (!ready) return <><MeshBackdrop /><div className="min-h-screen" /></>;
@@ -77,53 +88,32 @@ function Index() {
     return <><MeshBackdrop /><RegistrationCard onComplete={setProfile} /></>;
   }
 
-  if (session === "chats" || openChat) {
-    return (
-      <>
-        <MeshBackdrop />
-        <div className="min-h-screen flex flex-col">
-          <TopNav
-            profile={profile}
-            session="chats"
-            onSessionChange={setSession}
-            onLogout={() => setProfile(null)}
-            online={online}
-          />
-          <div className="flex-1 flex w-full max-w-7xl mx-auto overflow-hidden px-3 md:px-6 pb-3 md:pb-8 gap-3 md:gap-6 mt-3 md:mt-4">
-            {/* Chats List Sidebar */}
-            <div className={`w-full md:w-1/3 md:max-w-md shrink-0 h-[calc(100vh-10rem)] overflow-y-auto card-premium rounded-3xl pb-0 ${openChat ? 'hidden md:block' : 'block'}`}>
-              <ChatsList onOpenChat={goChat} />
-            </div>
-            
-            {/* Active Chat Area */}
-            <div className={`flex-1 min-w-0 h-[calc(100vh-10rem)] ${openChat ? 'block' : 'hidden md:flex items-center justify-center card-premium rounded-3xl'}`}>
-              {openChat ? (
-                <PersistentChat peer={openChat} onBack={() => setOpenChat(null)} />
-              ) : (
-                <div className="text-muted-foreground flex flex-col items-center gap-3">
-                  <div className="p-4 rounded-full glass">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                  </div>
-                  <p className="text-sm">Select a chat to start messaging</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </>
-    );
-  }
-
   return (
     <>
       <MeshBackdrop />
-      <ExploreDashboard
-        profile={profile}
-        session={session}
-        onSessionChange={setSession}
-        onLogout={() => setProfile(null)}
-        onOpenChat={goChat}
-      />
+      <div className="min-h-screen flex flex-col">
+        <TopNav
+          profile={profile}
+          onLogout={() => setProfile(null)}
+          online={online}
+        />
+        <main className="flex-1 flex flex-col overflow-hidden">
+          <div className={tab !== "explore" ? "hidden" : "flex-1 overflow-y-auto pb-20 md:pb-8"}>
+            <ExploreDashboard onOpenChat={goChat} />
+          </div>
+          <div className={tab !== "chats" ? "hidden" : "flex-1 overflow-y-auto pb-20 md:pb-8"}>
+            {openChat ? (
+              <PersistentChat peer={openChat} onBack={() => setOpenChat(null)} />
+            ) : (
+              <ChatsList onOpenChat={goChat} />
+            )}
+          </div>
+          <div className={tab !== "friends" ? "hidden" : "flex-1 overflow-y-auto pb-20 md:pb-8"}>
+            <FriendsTab onOpenChat={goChat} />
+          </div>
+        </main>
+        <BottomNav tab={tab} onTabChange={setTab} badge={requests} />
+      </div>
     </>
   );
 }
