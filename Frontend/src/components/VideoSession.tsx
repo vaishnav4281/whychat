@@ -25,10 +25,10 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
   const [accepted, setAccepted] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [online, setOnline] = useState(0);
-  
+
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const feedRef = useRef<HTMLDivElement>(null);
@@ -42,7 +42,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
     const onLocalStream = (e: CustomEvent<{ stream: MediaStream }>) => {
       setLocalStream(e.detail.stream);
     };
-    
+
     const onRemoteStream = (e: CustomEvent<{ stream: MediaStream }>) => {
       setRemoteStream(e.detail.stream);
     };
@@ -53,7 +53,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
       if (localRef.current) localRef.current.srcObject = null;
       if (remoteRef.current) remoteRef.current.srcObject = null;
     };
-    
+
     const onMatchFound = (e: CustomEvent<{ peerId: string; initiateCall: boolean; peer?: any }>) => {
       const matchedPeer = e.detail.peer ?? {
         id: e.detail.peerId,
@@ -174,7 +174,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
     discovery.sendFriendRequest(String(peer.id));
     setRequested(true);
   };
-  
+
   const sendChat = () => {
     if (!draft.trim() || !peer) return;
     webrtc.sendText(draft.trim());
@@ -195,14 +195,14 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
   if (phase === "idle") {
     return (
       <div className="min-h-screen flex items-center justify-center px-6">
-        <div className="card-apple p-8 md:p-10 max-w-xl w-full text-center animate-in relative">
+        <div className="card-premium card-accent-top p-8 md:p-10 max-w-xl w-full text-center animate-in relative">
           <button onClick={onBack} className="btn-ghost absolute top-5 left-5 flex items-center gap-1.5">
             <ArrowLeft className="w-3.5 h-3.5" /> Back
           </button>
-          <div className="w-16 h-16 rounded-2xl bg-foreground mx-auto mb-5 flex items-center justify-center">
-            <VideoIcon className="w-7 h-7 text-background" />
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#7C3AED] to-[#EC4899] mx-auto mb-5 flex items-center justify-center shadow-md">
+            <VideoIcon className="w-7 h-7 text-white" />
           </div>
-          <div className="tag-apple mb-1">Live Pool</div>
+          <div className="badge-gradient mb-3 inline-block">Live Pool</div>
           <h1 className="text-3xl font-bold tracking-tight mb-2 text-balance">
             Meet a stranger.
           </h1>
@@ -214,7 +214,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
             <span className="text-xs font-semibold">{online.toLocaleString()} strangers online</span>
           </div>
           <button onClick={enterPool}
-            className="btn-primary inline-flex items-center gap-2 px-8 py-3.5">
+            className="btn-gradient inline-flex items-center gap-2 px-8 py-3.5">
             <Sparkles className="w-4 h-4" /> Start Matching
           </button>
         </div>
@@ -225,12 +225,12 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
   if (phase === "ended") {
     return (
       <div className="min-h-screen flex items-center justify-center px-6">
-        <div className="card-apple p-8 max-w-md w-full text-center animate-in">
-          <div className="tag-apple mb-2">Call Ended</div>
+        <div className="card-premium card-accent-pink p-8 max-w-md w-full text-center animate-in">
+          <div className="badge-pink mb-2 inline-block">Call Ended</div>
           <h2 className="text-2xl font-bold mb-6">What next?</h2>
           <div className="grid gap-2">
             <button onClick={matchNext}
-              className="btn-primary inline-flex items-center justify-center gap-2 py-3">
+              className="btn-gradient inline-flex items-center justify-center gap-2 py-3">
               <SkipForward className="w-4 h-4" /> Match Again
             </button>
             <button onClick={onGoExplore}
@@ -252,16 +252,16 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
     <div className="fixed inset-0 z-40 p-0 md:p-6 bg-black/60 flex items-center justify-center">
       <div className="relative w-full h-full md:h-[calc(100vh-3rem)] md:rounded-[2rem] overflow-hidden bg-neutral-900 shadow-2xl md:max-w-[calc(100vw-3rem)]">
         <video ref={remoteRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover z-0" />
-        
+
         <div className="absolute inset-0 z-10 flex items-center justify-center">
           {isSearching && (
-            <div className="text-center bg-black/70 p-8 md:p-10 rounded-2xl">
-              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full mx-auto mb-6 bg-white/20" />
+            <div className="text-center bg-black/70 p-8 md:p-10 rounded-2xl backdrop-blur-sm">
+              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full mx-auto mb-6 bg-gradient-to-br from-[#7C3AED] to-[#EC4899] shadow-lg" />
               <div className="text-white text-xl md:text-2xl font-bold tracking-tight">Searching the pool…</div>
               <div className="text-white/50 text-xs mt-2 uppercase tracking-widest">Pairing with a stranger</div>
             </div>
           )}
-          
+
           {!isSearching && (
             <div className="text-center absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ opacity: remoteRef.current?.srcObject ? 0 : 1 }}>
               <img src={String(peer?.avatar ?? "")} alt={String(peer?.nickname ?? "")}
@@ -292,8 +292,8 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
 
         {accepted && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-md rounded-2xl px-8 py-6 text-center animate-in z-30 pointer-events-none">
-            <div className="w-14 h-14 rounded-full bg-foreground flex items-center justify-center mx-auto mb-3">
-              <Check className="w-7 h-7 text-background" />
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#10B981] to-[#6EE7B7] flex items-center justify-center mx-auto mb-3 shadow-md">
+              <Check className="w-7 h-7 text-white" />
             </div>
             <div className="font-bold text-lg text-foreground">You're now friends</div>
             <div className="text-xs text-muted-foreground mt-1">Chat history is now saved</div>
@@ -314,7 +314,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
                   <div key={m.ts.toString() + m.content.length} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
                       mine
-                        ? "bg-white text-foreground rounded-br-sm"
+                        ? "bg-gradient-to-r from-[#7C3AED] to-[#A78BFA] text-white rounded-br-sm"
                         : "bg-white/20 text-white rounded-bl-sm"
                     }`}>
                       <span className="whitespace-pre-wrap break-words">{m.content}</span>
@@ -334,7 +334,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
                   maxLength={200}
                 />
                 <button onClick={sendChat}
-                  className="w-8 h-8 rounded-full bg-white text-foreground flex items-center justify-center hover:opacity-80 transition shrink-0">
+                  className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#EC4899] text-white flex items-center justify-center hover:opacity-85 transition shrink-0 shadow-sm">
                   <Send className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -349,7 +349,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
               disabled={requested || isSearching}
               className={`px-3 md:px-5 py-2.5 md:py-3 rounded-full text-xs md:text-sm font-semibold flex items-center gap-1.5 md:gap-2 transition ${
                 requested
-                  ? "bg-green-500 text-white"
+                  ? "bg-gradient-to-r from-[#10B981] to-[#6EE7B7] text-white shadow-sm"
                   : isSearching
                   ? "bg-white/20 text-white/40 cursor-not-allowed"
                   : "bg-white text-foreground hover:opacity-80"
@@ -368,7 +368,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
             </button>
             <button
               onClick={endCall}
-              className="px-3 md:px-5 py-2.5 md:py-3 rounded-full bg-red-500 text-white text-xs md:text-sm font-semibold flex items-center gap-1.5 md:gap-2 hover:opacity-80 transition"
+              className="px-3 md:px-5 py-2.5 md:py-3 rounded-full bg-gradient-to-r from-[#EF4444] to-[#F87171] text-white text-xs md:text-sm font-semibold flex items-center gap-1.5 md:gap-2 shadow-sm hover:opacity-90 transition"
             >
               <PhoneOff className="w-4 h-4" /> End
             </button>

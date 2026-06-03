@@ -106,12 +106,12 @@ function Index() {
           />
           <div className="flex-1 flex w-full max-w-7xl mx-auto overflow-hidden px-3 md:px-6 pb-3 md:pb-8 gap-3 md:gap-6 mt-3 md:mt-4">
             {/* Chats List Sidebar */}
-            <div className={`w-full md:w-1/3 md:max-w-md shrink-0 h-[calc(100vh-10rem)] overflow-y-auto glass-card rounded-3xl pb-0 ${openChat ? 'hidden md:block' : 'block'}`}>
+            <div className={`w-full md:w-1/3 md:max-w-md shrink-0 h-[calc(100vh-10rem)] overflow-y-auto card-premium rounded-3xl pb-0 ${openChat ? 'hidden md:block' : 'block'}`}>
               <ChatsList onOpenChat={goChat} />
             </div>
             
             {/* Active Chat Area */}
-            <div className={`flex-1 min-w-0 h-[calc(100vh-10rem)] ${openChat ? 'block' : 'hidden md:flex items-center justify-center glass-card rounded-3xl'}`}>
+            <div className={`flex-1 min-w-0 h-[calc(100vh-10rem)] ${openChat ? 'block' : 'hidden md:flex items-center justify-center card-premium rounded-3xl'}`}>
               {openChat ? (
                 <PersistentChat peer={openChat} onBack={() => setOpenChat(null)} />
               ) : (

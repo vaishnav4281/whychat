@@ -42,11 +42,16 @@ export function RegistrationCard({ onComplete }: Props) {
     <div className="min-h-screen flex items-center justify-center p-6">
       <form
         onSubmit={submit}
-        className="card-apple p-8 md:p-10 w-full max-w-xl animate-in"
+        className="card-premium card-accent-top p-8 md:p-10 w-full max-w-xl animate-in"
       >
-        <div className="flex items-center gap-2 mb-1">
-          <Sparkles className="w-4 h-4 text-primary" />
-          <span className="tag-apple">Step 01 · Identity</span>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#EC4899] flex items-center justify-center shadow-sm">
+            <Sparkles className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <span className="badge-gradient">Step 01</span>
+            <div className="text-sm text-muted-foreground mt-0.5">Set up your identity</div>
+          </div>
         </div>
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2 text-balance">
           Forge your presence.
@@ -56,26 +61,26 @@ export function RegistrationCard({ onComplete }: Props) {
         </p>
 
         <label className="block mb-5">
-          <span className="tag-apple flex items-center gap-1.5 mb-2">
+          <span className="tag-premium flex items-center gap-1.5 mb-2">
             <User2 className="w-3 h-3" /> Nickname
           </span>
           <input
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
             placeholder="luna"
-            className="input-apple"
+            className="input-premium"
             required
           />
         </label>
 
         <label className="block mb-5">
-          <span className="tag-apple flex items-center gap-1.5 mb-2">
+          <span className="tag-premium flex items-center gap-1.5 mb-2">
             <Globe2 className="w-3 h-3" /> Country
           </span>
           <select
             value={country}
             onChange={(e) => setCountry(e.target.value)}
-            className="select-apple"
+            className="select-premium"
           >
             {COUNTRIES.map((c) => (
               <option key={c.name} value={c.name}>
@@ -86,14 +91,14 @@ export function RegistrationCard({ onComplete }: Props) {
         </label>
 
         <div className="mb-5">
-          <span className="tag-apple block mb-2">Gender</span>
-          <div className="pill-apple inline-flex">
+          <span className="tag-premium block mb-2">Gender</span>
+          <div className="pill-premium inline-flex">
             {(["F", "M"] as Gender[]).map((g) => (
               <button
                 key={g}
                 type="button"
                 onClick={() => setGender(g)}
-                className={`pill-apple-item ${gender === g ? "active" : ""}`}
+                className={`pill-premium-item ${gender === g ? "active" : ""}`}
               >
                 {g === "F" ? "Female" : "Male"}
               </button>
@@ -102,7 +107,7 @@ export function RegistrationCard({ onComplete }: Props) {
         </div>
 
         <div className="mb-8">
-          <span className="tag-apple flex items-center gap-1.5 mb-2">
+          <span className="tag-premium flex items-center gap-1.5 mb-2">
             <Languages className="w-3 h-3" /> Languages · tap to add
           </span>
           <div className="flex flex-wrap gap-1.5">
@@ -115,11 +120,11 @@ export function RegistrationCard({ onComplete }: Props) {
                   onClick={() => toggleLang(l)}
                   className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all duration-200 ${
                     active
-                      ? "bg-foreground text-background border-foreground"
+                      ? "bg-gradient-to-r from-[#7C3AED] to-[#A78BFA] text-white border-transparent shadow-sm"
                       : "bg-secondary text-foreground border-transparent hover:bg-muted"
                   }`}
                 >
-                  {active ? "✓" : ""}{l}
+                  {active ? "✓ " : ""}{l}
                 </button>
               );
             })}
@@ -128,7 +133,7 @@ export function RegistrationCard({ onComplete }: Props) {
 
         <button
           type="submit"
-          className="btn-primary w-full py-3.5 text-center"
+          className="btn-gradient w-full py-3.5 text-center text-sm"
         >
           Enter the Hub →
         </button>

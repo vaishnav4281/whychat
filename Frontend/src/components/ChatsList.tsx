@@ -28,7 +28,7 @@ export function ChatsList({ onOpenChat }: Props) {
       }
       setPreviews(p);
     };
-    
+
     update();
     window.addEventListener('whychat_storage_update', update);
     return () => window.removeEventListener('whychat_storage_update', update);
@@ -38,13 +38,17 @@ export function ChatsList({ onOpenChat }: Props) {
     <div className="p-5 md:p-6 h-full">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-2 mb-1">
-          <Sparkles className="w-4 h-4 text-primary" />
-          <span className="tag-apple">Inbox</span>
+          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-[#7C3AED] to-[#EC4899] flex items-center justify-center">
+            <Sparkles className="w-3.5 h-3.5 text-white" />
+          </div>
+          <span className="badge-gradient">Inbox</span>
         </div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-5 md:mb-6">Your chats</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-5 md:mb-6">
+          Your chats
+        </h1>
 
         {friends.length === 0 ? (
-          <div className="card-apple p-8 md:p-10 text-center">
+          <div className="card-premium card-accent-blue p-8 md:p-10 text-center">
             <div className="text-sm text-muted-foreground">
               No conversations yet. Match someone in Video to start chatting.
             </div>
@@ -56,15 +60,15 @@ export function ChatsList({ onOpenChat }: Props) {
 
               return (
                 <button key={f.id} onClick={() => onOpenChat({ ...f, nickname: f.name, gender: 'M', languages: [], online: true } as PeerUser)}
-                  className="w-full card-apple-hover p-3.5 md:p-4 flex items-center gap-3 text-left">
+                  className="w-full card-premium-hover card-accent-top p-3.5 md:p-4 flex items-center gap-3 text-left">
                   <div className="relative shrink-0">
-                    <img src={f.avatar} alt="" className="w-11 h-11 md:w-12 md:h-12 rounded-2xl bg-secondary" />
+                    <img src={f.avatar} alt="" className="w-11 h-11 md:w-12 md:h-12 rounded-2xl bg-secondary ring-2 ring-[#D8D0F5]" />
                     <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 ring-2 ring-card" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-sm md:text-base">{f.name}</span>
-                      <span className="tag-apple !text-[10px]">{flagFor(f.country)} {f.country}</span>
+                      <span className="tag-premium !text-[10px]">{flagFor(f.country)} {f.country}</span>
                     </div>
                     <div className="text-sm text-muted-foreground truncate">{preview}</div>
                   </div>

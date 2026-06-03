@@ -2,6 +2,7 @@ const clientsBySocket = new Map();
 const clientsById = new Map();
 const videoQueue = new Set();
 const rateLimits = new Map();
+const CONNECTION_TIMEOUT = 120_000; // 2 min idle -> close
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -37,7 +38,7 @@ function scheduleBroadcast() {
     broadcastDirty = false;
     const data = { online: clientsById.size };
     for (const client of clientsBySocket.values()) {
-      if (!client.cleanedUp) send(client, "state_update", data);
+      if (!client.cleanedUp) send(client, "global_metrics", data);
     }
   });
 }
@@ -122,7 +123,8 @@ function cleanup(client) {
   clientsById.delete(client.id);
   videoQueue.delete(client.id);
   rateLimits.delete(client.id);
-  try { client.socket.close(); } catch { /* already closed */ }
+  if (client.idleTimer) clearTimeout(client.idleTimer);
+  try { client.socket.close(1000, "cleanup"); } catch {}
   scheduleBroadcast();
 }
 
@@ -147,18 +149,22 @@ function handleMessage(client, raw) {
     const profile = message.data ?? {};
     const newId = profile.id || client.id;
     const existing = clientsById.get(newId);
+
     if (existing && existing !== client) {
       existing.cleanedUp = true;
       clientsBySocket.delete(existing.socket);
       clientsById.delete(newId);
       videoQueue.delete(newId);
       rateLimits.delete(newId);
-      try { existing.socket.close(); } catch { /* already closed */ }
+      if (existing.idleTimer) clearTimeout(existing.idleTimer);
+      try { existing.socket.close(1000, "replaced"); } catch {}
     }
+
     const oldId = client.id;
+    if (oldId !== newId) clientsById.delete(oldId);
+
     client.id = newId;
     client.profile = profile;
-    if (oldId !== newId) clientsById.delete(oldId);
     clientsById.set(client.id, client);
     scheduleBroadcast();
     return;
@@ -195,12 +201,24 @@ function handleWebSocket(request) {
     profile: null,
     socket: serverSocket,
     cleanedUp: false,
+    idleTimer: null,
   };
+
+  // Reset idle timer on any activity
+  function touchIdle() {
+    if (client.idleTimer) clearTimeout(client.idleTimer);
+    client.idleTimer = setTimeout(() => cleanup(client), CONNECTION_TIMEOUT);
+  }
 
   clientsBySocket.set(serverSocket, client);
   clientsById.set(client.id, client);
+  touchIdle();
 
-  serverSocket.addEventListener("message", (event) => handleMessage(client, event.data));
+  serverSocket.addEventListener("message", (event) => {
+    touchIdle();
+    handleMessage(client, event.data);
+  });
+
   serverSocket.addEventListener("close", () => cleanup(client));
   serverSocket.addEventListener("error", () => cleanup(client));
 

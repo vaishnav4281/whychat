@@ -23,11 +23,13 @@ interface Props {
 
 type SidebarTab = "requests" | "friends";
 
+const ACCENT_CLASSES = ["card-accent-top", "card-accent-pink", "card-accent-blue", "card-accent-green"];
+
 export function ExploreDashboard({ profile, session, onSessionChange, onLogout, onOpenChat }: Props) {
   const [allPeers, setAllPeers] = useState<Array<Record<string, unknown>>>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
-  
+
   const [tab, setTab] = useState<SidebarTab>("requests");
   const [genderFilter, setGenderFilter] = useState<"all" | "M" | "F">("all");
   const [countryFilter, setCountryFilter] = useState<string>("all");
@@ -127,7 +129,7 @@ export function ExploreDashboard({ profile, session, onSessionChange, onLogout, 
       <div className="px-4 md:px-6 py-6 grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 pb-12">
         {/* Sidebar */}
         <aside className="space-y-4">
-          <div className="pill-apple flex">
+          <div className="pill-premium flex">
             {([
               { k: "requests" as const, label: "Requests", icon: UserPlus, count: requests.length },
               { k: "friends" as const, label: "Friends", icon: Users, count: friends.length },
@@ -135,7 +137,7 @@ export function ExploreDashboard({ profile, session, onSessionChange, onLogout, 
               <button
                 key={t.k}
                 onClick={() => setTab(t.k)}
-                className={`pill-apple-item flex-1 flex items-center justify-center gap-2 ${
+                className={`pill-premium-item flex-1 flex items-center justify-center gap-2 ${
                   tab === t.k ? "active" : ""
                 }`}
               >
@@ -145,24 +147,24 @@ export function ExploreDashboard({ profile, session, onSessionChange, onLogout, 
             ))}
           </div>
 
-          <div className="card-apple p-4 min-h-[400px]">
+          <div className="card-premium p-4 min-h-[400px]">
             {tab === "requests" ? (
               <div className="space-y-2">
-                <div className="tag-apple px-1 mb-2">Incoming · {requests.length}</div>
+                <div className="tag-premium px-1 mb-2">Incoming · {requests.length}</div>
                 {requests.length === 0 && (
                   <div className="text-sm text-muted-foreground text-center py-12">
                     No pending requests.
                   </div>
                 )}
                 {requests.map((r) => (
-                  <div key={r.id} className="surface-secondary p-3 flex items-center gap-3 animate-in">
+                  <div key={r.id} className="surface-soft p-3 flex items-center gap-3 animate-in">
                     <img src={r.avatar} alt="" className="w-11 h-11 rounded-full bg-secondary" />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold truncate">{r.name}</div>
-                      <div className="tag-apple !text-[10px]">{flagFor(r.country)} {r.country}</div>
+                      <div className="tag-premium !text-[10px]">{flagFor(r.country)} {r.country}</div>
                     </div>
                     <button onClick={() => acceptRequest(r)}
-                      className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center hover:opacity-80 transition shrink-0">
+                      className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#A78BFA] text-white flex items-center justify-center hover:opacity-85 transition shrink-0 shadow-sm">
                       <Check className="w-4 h-4" />
                     </button>
                     <button onClick={() => declineRequest(r)}
@@ -174,7 +176,7 @@ export function ExploreDashboard({ profile, session, onSessionChange, onLogout, 
               </div>
             ) : (
               <div className="space-y-2">
-                <div className="tag-apple px-1 mb-2">Friends · {friends.length}</div>
+                <div className="tag-premium px-1 mb-2">Friends · {friends.length}</div>
                 {friends.length === 0 && (
                   <div className="text-sm text-muted-foreground text-center py-12">
                     No friends yet. Jump into Video to meet strangers.
@@ -182,14 +184,14 @@ export function ExploreDashboard({ profile, session, onSessionChange, onLogout, 
                 )}
                 {friends.map((f) => (
                   <button key={f.id} onClick={() => handleOpenChat(f)}
-                    className="w-full surface-secondary p-3 flex items-center gap-3 hover:opacity-80 transition text-left">
+                    className="w-full surface-soft p-3 flex items-center gap-3 hover:opacity-80 transition text-left">
                     <div className="relative shrink-0">
                       <img src={f.avatar} alt="" className="w-11 h-11 rounded-full bg-secondary" />
                       <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 ring-2 ring-card" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold truncate">{f.name}</div>
-                      <div className="tag-apple !text-[10px]">{flagFor(f.country)} {f.country}</div>
+                      <div className="tag-premium !text-[10px]">{flagFor(f.country)} {f.country}</div>
                     </div>
                     <MessageCircle className="w-4 h-4 text-muted-foreground shrink-0" />
                   </button>
@@ -202,7 +204,7 @@ export function ExploreDashboard({ profile, session, onSessionChange, onLogout, 
         {/* Main */}
         <main>
           {/* Filter pills */}
-          <div className="card-apple p-3 mb-6 flex items-center gap-2 flex-wrap">
+          <div className="card-premium p-3 mb-6 flex items-center gap-2 flex-wrap">
             <Filter className="w-4 h-4 text-muted-foreground ml-1 shrink-0" />
             <PillSelect label="Gender" value={genderFilter} setValue={(v) => setGenderFilter(v as typeof genderFilter)}
               options={[{ v: "all", l: "Any" }, { v: "F", l: "Female" }, { v: "M", l: "Male" }]} />
@@ -210,10 +212,10 @@ export function ExploreDashboard({ profile, session, onSessionChange, onLogout, 
               options={[{ v: "all", l: "Anywhere" }, ...COUNTRIES.map((c) => ({ v: c.name, l: `${c.flag} ${c.name}` }))]} />
             <PillSelect label="Language" value={langFilter} setValue={setLangFilter}
               options={[{ v: "all", l: "Any" }, ...LANGUAGES.map((l) => ({ v: l, l }))]} />
-            <div className="ml-auto surface-secondary flex items-center gap-2 px-3 py-1.5">
+            <div className="ml-auto surface-soft flex items-center gap-2 px-3 py-1.5">
               <Radio className="w-3.5 h-3.5 text-green-500" />
               <span className="text-xs font-semibold tabular-nums">{filtered.length}</span>
-              <span className="tag-apple !text-[10px]">online now</span>
+              <span className="tag-premium !text-[10px]">online now</span>
             </div>
           </div>
 
@@ -222,21 +224,22 @@ export function ExploreDashboard({ profile, session, onSessionChange, onLogout, 
             {filtered.map((p, i) => {
               const sent = sentTo.has(String(p.id));
               const isFriend = friends.some((f) => f.id === p.id);
+              const accentClass = ACCENT_CLASSES[i % ACCENT_CLASSES.length];
               return (
                 <article
                   key={String(p.id)}
                   style={{ animationDelay: `${i * 40}ms` }}
-                  className="card-apple-hover p-5 animate-in"
+                  className={`card-premium-hover ${accentClass} p-5 animate-in`}
                 >
                   <div className="flex items-start gap-3 mb-3">
                     <div className="relative">
                       <img src={String(p.avatar ?? "")} alt={String(p.nickname ?? "")}
-                        className="w-14 h-14 rounded-2xl bg-secondary" />
+                        className="w-14 h-14 rounded-2xl bg-secondary ring-2 ring-[#D8D0F5]" />
                       <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 ring-2 ring-card" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold tracking-tight truncate">{String(p.nickname ?? "")}</h3>
-                      <div className="tag-apple !text-[10px] mt-0.5">{flagFor(String(p.country ?? ""))} {String(p.country ?? "")}</div>
+                      <div className="tag-premium !text-[10px] mt-0.5">{flagFor(String(p.country ?? ""))} {String(p.country ?? "")}</div>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1 mb-4 min-h-[26px]">
@@ -250,7 +253,7 @@ export function ExploreDashboard({ profile, session, onSessionChange, onLogout, 
                     {isFriend ? (
                       <button
                         onClick={() => handleOpenChat(p)}
-                        className="col-span-2 btn-primary text-center flex items-center justify-center gap-1.5">
+                        className="col-span-2 btn-gradient text-center flex items-center justify-center gap-1.5">
                         <MessageCircle className="w-3.5 h-3.5" /> Open Chat
                       </button>
                     ) : (
@@ -260,8 +263,8 @@ export function ExploreDashboard({ profile, session, onSessionChange, onLogout, 
                           disabled={sent}
                           className={`text-xs font-semibold py-2.5 rounded-full flex items-center justify-center gap-1.5 transition ${
                             sent
-                              ? "bg-foreground text-background"
-                              : "btn-primary"
+                              ? "bg-gradient-to-r from-[#10B981] to-[#6EE7B7] text-white shadow-sm"
+                              : "btn-gradient"
                           }`}>
                           {sent ? <><Check className="w-3.5 h-3.5" /> Sent</> : <><UserPlus className="w-3.5 h-3.5" /> Add</>}
                         </button>
@@ -288,8 +291,8 @@ function PillSelect({ label, value, setValue, options }: {
   options: Array<{ v: string; l: string }>;
 }) {
   return (
-    <label className="surface-secondary rounded-full px-3 py-1.5 flex items-center gap-2 text-xs">
-      <span className="tag-apple !text-[10px]">{label}</span>
+    <label className="surface-soft rounded-full px-3 py-1.5 flex items-center gap-2 text-xs">
+      <span className="tag-premium !text-[10px]">{label}</span>
       <select
         value={value}
         onChange={(e) => setValue(e.target.value)}

@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function PersistentChat({ peer, onBack }: Props) {
-  const [messages, setMessages] = useState<ChatMessage[]>(() => 
+  const [messages, setMessages] = useState<ChatMessage[]>(() =>
     StorageService.getChatHistory(peer.id)
   );
   const [draft, setDraft] = useState("");
@@ -105,9 +105,9 @@ export function PersistentChat({ peer, onBack }: Props) {
       rec.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         const file = new File([blob], `voice_${Date.now()}.webm`, { type: 'audio/webm' });
-        
+
         webrtc.sendFile(file);
-        
+
         const url = URL.createObjectURL(blob);
         pushLocal({ type: "voice", content: url });
         stream.getTracks().forEach((t) => t.stop());
@@ -124,16 +124,16 @@ export function PersistentChat({ peer, onBack }: Props) {
   };
 
   return (
-    <div className="w-full h-full flex flex-col card-apple overflow-hidden">
+    <div className="w-full h-full flex flex-col card-premium card-accent-top overflow-hidden">
       {/* Header */}
       <div className="px-4 md:px-5 py-3.5 md:py-4 flex items-center gap-3 border-b border-border">
         <button onClick={onBack} className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:opacity-80 transition shrink-0">
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <img src={peer.avatar} alt="" className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-secondary ring-1 ring-border" />
+        <img src={peer.avatar} alt="" className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-secondary ring-2 ring-[#D8D0F5]" />
         <div className="flex-1 min-w-0">
           <div className="font-bold tracking-tight truncate">{peer.nickname}</div>
-          <div className="tag-apple !text-[10px]">
+          <div className="tag-premium !text-[10px]">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block mr-1.5 align-middle" />
             {flagFor(peer.country)} {peer.country} · peer-to-peer
           </div>
@@ -141,7 +141,7 @@ export function PersistentChat({ peer, onBack }: Props) {
       </div>
 
       {/* Feed */}
-      <div ref={feedRef} className="flex-1 overflow-y-auto px-4 md:px-5 py-5 md:py-6 space-y-3 bg-[#FBFBFD]">
+      <div ref={feedRef} className="flex-1 overflow-y-auto px-4 md:px-5 py-5 md:py-6 space-y-3 bg-[#FAFAFE]">
         {messages.length === 0 && (
           <div className="text-center text-sm text-muted-foreground py-12">
             Say hi to {peer.nickname}
@@ -168,7 +168,7 @@ export function PersistentChat({ peer, onBack }: Props) {
           </button>
           <button onClick={recording ? stopRec : startRec}
             className={`w-9 h-9 rounded-full flex items-center justify-center transition shrink-0 border border-border ${
-              recording ? "bg-destructive text-white" : "bg-card text-foreground hover:opacity-80"
+              recording ? "bg-gradient-to-r from-[#EF4444] to-[#F87171] text-white" : "bg-card text-foreground hover:opacity-80"
             }`}>
             {recording ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
           </button>
@@ -180,7 +180,7 @@ export function PersistentChat({ peer, onBack }: Props) {
             className="flex-1 bg-transparent text-sm outline-none px-1 md:px-2 placeholder:text-muted-foreground"
           />
           <button onClick={send}
-            className="w-10 h-10 rounded-full bg-foreground text-background flex items-center justify-center hover:opacity-80 transition shrink-0">
+            className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#EC4899] text-white flex items-center justify-center hover:opacity-85 transition shrink-0 shadow-sm">
             <Send className="w-4 h-4" />
           </button>
         </div>
@@ -193,7 +193,7 @@ function Bubble({ m }: { m: ChatMessage }) {
   const mine = m.senderId === "me";
   const base = "max-w-[75%] rounded-2xl px-4 py-2.5 text-sm animate-in shadow-sm";
   const skin = mine
-    ? "bg-foreground text-background rounded-br-sm"
+    ? "bg-gradient-to-r from-[#7C3AED] to-[#A78BFA] text-white rounded-br-sm"
     : "bg-card text-foreground rounded-bl-sm border border-border";
   return (
     <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
