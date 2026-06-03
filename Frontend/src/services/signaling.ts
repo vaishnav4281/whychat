@@ -27,6 +27,7 @@ export class SignalingService {
   public events = new EventTarget() as SignalingEventTarget;
   private reconnectInterval = 3000;
   private connectPromise: Promise<void> | null = null;
+  private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private demoMode = import.meta.env.DEV && !this.url;
 
   private constructor() {
@@ -72,6 +73,12 @@ export class SignalingService {
         this.ws.onopen = () => {
           this.events.dispatchEvent(new Event('connected'));
           this.joinPool();
+          // Client-driven heartbeat — keeps connection alive in Cloudflare Workers
+          this.heartbeatInterval = setInterval(() => {
+            if (this.ws?.readyState === WebSocket.OPEN) {
+              this.ws.send(JSON.stringify({ type: 'ping' }));
+            }
+          }, 20000);
           resolve();
         };
 
@@ -83,6 +90,10 @@ export class SignalingService {
           this.events.dispatchEvent(new Event('disconnected'));
           this.ws = null;
           this.connectPromise = null;
+          if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
+          }
           // Auto reconnect
           setTimeout(() => this.connect(), this.reconnectInterval);
         };
@@ -104,7 +115,11 @@ export class SignalingService {
   private handleMessage(data: string) {
     try {
       const message = JSON.parse(data);
-      if (message.type === 'ping') {
+      if (message.type === 'pong') {
+        // server acknowledged our ping — connection alive
+        return;
+      } else if (message.type === 'ping') {
+        // server-initiated ping (legacy) — respond
         this.send({ type: 'pong' });
       } else {
         // Dispatch specific event based on message type
