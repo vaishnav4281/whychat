@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { MeshBackdrop } from "@/components/MeshBackdrop";
 import { RegistrationCard } from "@/components/RegistrationCard";
 import { ExploreDashboard, type Session } from "@/components/ExploreDashboard";
-import { VideoSession } from "@/components/VideoSession";
 import { ChatsList } from "@/components/ChatsList";
 import { PersistentChat } from "@/components/PersistentChat";
 import { TopNav } from "@/components/TopNav";
@@ -76,20 +75,6 @@ function Index() {
 
   if (!profile) {
     return <><MeshBackdrop /><RegistrationCard onComplete={setProfile} /></>;
-  }
-
-  if (session === "video") {
-    return (
-      <>
-        <MeshBackdrop />
-        <VideoSession
-          profile={profile}
-          onBack={() => setSession("explore")}
-          onGoExplore={() => setSession("explore")}
-          onOpenChat={goChat}
-        />
-      </>
-    );
   }
 
   if (session === "chats" || openChat) {

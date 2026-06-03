@@ -11,7 +11,7 @@ import { signaling } from "@/services/signaling";
 import { discovery } from "@/services/discovery";
 import { TopNav } from "./TopNav";
 
-export type Session = "explore" | "video" | "chats";
+export type Session = "explore" | "chats";
 
 interface Props {
   profile: UserProfile;
@@ -179,7 +179,7 @@ export function ExploreDashboard({ profile, session, onSessionChange, onLogout, 
                 <div className="tag-premium px-1 mb-2">Friends · {friends.length}</div>
                 {friends.length === 0 && (
                   <div className="text-sm text-muted-foreground text-center py-12">
-                    No friends yet. Jump into Video to meet strangers.
+                    No friends yet. Send a friend request to someone in Explore.
                   </div>
                 )}
                 {friends.map((f) => (

@@ -50,7 +50,7 @@ export function ChatsList({ onOpenChat }: Props) {
         {friends.length === 0 ? (
           <div className="card-premium card-accent-blue p-8 md:p-10 text-center">
             <div className="text-sm text-muted-foreground">
-              No conversations yet. Match someone in Video to start chatting.
+              No conversations yet. Send a message to a friend.
             </div>
           </div>
         ) : (

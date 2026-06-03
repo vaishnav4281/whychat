@@ -1,5 +1,5 @@
 import {
-  Sparkles, Compass, Video, MessagesSquare, LogOut, Search,
+  Sparkles, Compass, MessagesSquare, LogOut, Search,
 } from "lucide-react";
 import { StorageService } from "@/services/storage";
 import { flagFor, type UserProfile } from "@/lib/peerStore";
@@ -27,7 +27,6 @@ export function TopNav({ profile, session, onSessionChange, onLogout, online = 0
         <nav className="pill-premium flex items-center">
           {([
             { k: "explore" as const, label: "Explore", icon: Compass },
-            { k: "video" as const, label: "Video", icon: Video },
             { k: "chats" as const, label: "Chats", icon: MessagesSquare },
           ]).map((t) => (
             <button
