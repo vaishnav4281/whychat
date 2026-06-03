@@ -52,7 +52,9 @@ export function ExploreDashboard({ profile, session, onSessionChange, onLogout, 
     });
   }, []);
 
+  // Fetch when filters change, but only after signaling is ready
   useEffect(() => {
+    if (!signaling.isReady()) return;
     fetchExploreWithFilters();
   }, [genderFilter, countryFilter, langFilter, fetchExploreWithFilters]);
 

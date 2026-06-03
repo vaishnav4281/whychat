@@ -43,6 +43,11 @@ export class SignalingService {
 
   private constructor() {}
 
+  /** Returns true when the service can handle requests (connected or in demo mode). */
+  public isReady(): boolean {
+    return this.demoMode || this.ws?.readyState === WebSocket.OPEN;
+  }
+
   public static getInstance(): SignalingService {
     if (!SignalingService.instance) {
       SignalingService.instance = new SignalingService();
