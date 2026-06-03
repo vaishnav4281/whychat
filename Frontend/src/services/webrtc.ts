@@ -134,7 +134,6 @@ export class WebRTCService {
           }
           await this.peerConnection.setLocalDescription({ type: 'rollback' });
         }
-        if (this.peerConnection.signalingState === 'stable') return;
         await this.peerConnection.setRemoteDescription(new RTCSessionDescription(signal.offer));
         const answer = await this.peerConnection.createAnswer();
         await this.peerConnection.setLocalDescription(answer);
