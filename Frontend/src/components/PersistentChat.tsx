@@ -186,8 +186,8 @@ export function PersistentChat({ peer, onBack }: Props) {
       </div>
 
       {/* Composer */}
-      <div className="px-2 md:px-3 py-1.5 md:py-2 pb-20 border-t border-border">
-        <div className="bg-secondary rounded-full px-2 md:px-3 py-1 md:py-1.5 flex items-center gap-1 md:gap-1.5">
+      <div className="px-2 py-1 pb-14 border-t border-border">
+        <div className="bg-secondary rounded-full px-2 py-0.5 flex items-center gap-1">
           <input ref={fileRef} type="file" accept="image/*" className="hidden"
             onChange={(e) => {
               if (e.target.files && e.target.files[0]) {
@@ -196,25 +196,25 @@ export function PersistentChat({ peer, onBack }: Props) {
               }
             }} />
           <button onClick={() => fileRef.current?.click()}
-            className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-card text-foreground flex items-center justify-center hover:opacity-80 transition shrink-0 border border-border">
-            <ImagePlus className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            className="w-7 h-7 rounded-full bg-card text-foreground flex items-center justify-center hover:opacity-80 transition shrink-0 border border-border">
+            <ImagePlus className="w-3 h-3" />
           </button>
           <button onClick={recording ? stopRec : startRec}
-            className={`w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center transition shrink-0 border border-border ${
+            className={`w-7 h-7 rounded-full flex items-center justify-center transition shrink-0 border border-border ${
               recording ? "bg-gradient-to-r from-[#EF4444] to-[#F87171] text-white" : "bg-card text-foreground hover:opacity-80"
             }`}>
-            {recording ? <Square className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <Mic className="w-3.5 h-3.5 md:w-4 md:h-4" />}
+            {recording ? <Square className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
           </button>
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}
             placeholder="Type a message…"
-            className="flex-1 bg-transparent text-sm outline-none px-1 placeholder:text-muted-foreground"
+            className="flex-1 bg-transparent text-sm outline-none px-1 placeholder:text-muted-foreground py-1"
           />
           <button onClick={send}
-            className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#EC4899] text-white flex items-center justify-center hover:opacity-85 transition shrink-0 shadow-sm">
-            <Send className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#EC4899] text-white flex items-center justify-center hover:opacity-85 transition shrink-0 shadow-sm">
+            <Send className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
