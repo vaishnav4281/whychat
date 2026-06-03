@@ -9,7 +9,7 @@ interface Props {
   totalVisits?: number;
 }
 
-export function TopNav({ profile, onLogout, online = 0 }: Props) {
+export function TopNav({ profile, onLogout, online = 0, totalVisits }: Props) {
   return (
     <header className="sticky top-0 z-30">
       <div className="nav-premium px-4 md:px-6 py-2.5 md:py-3 flex items-center gap-4">
