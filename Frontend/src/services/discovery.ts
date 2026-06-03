@@ -106,6 +106,7 @@ export class DiscoveryService {
 
   private handleFriendAccept(e: CustomEvent<{ peerId: string; peerDetails: any }>) {
     const { peerId, peerDetails } = e.detail;
+    StorageService.removeRequest(peerId);
     const friend: Friend = {
       id: peerId,
       name: peerDetails.name,
@@ -113,7 +114,6 @@ export class DiscoveryService {
       country: peerDetails.country,
       addedAt: Date.now()
     };
-    // Both users write each other's details directly into local storage
     StorageService.addFriend(peerId, friend);
   }
 }

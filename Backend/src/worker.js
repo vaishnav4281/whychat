@@ -1,248 +1,321 @@
-const clientsBySocket = new Map();
-const clientsById = new Map();
-const videoQueue = new Set();
-const rateLimits = new Map();
-const CONNECTION_TIMEOUT = 120_000; // 2 min idle -> close
+// ─── WhyChat Switchboard ──────────────────────────────────────────────────
+// Cloudflare Workers WebSocket signaling server.
+// No KV, D1, or external storage — all state is in-memory per-isolate.
+// Free-tier safe: lightweight message handling, idle-drain, rate limiting.
+// ────────────────────────────────────────────────────────────────────────────
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
+// ─── In-memory state ───────────────────────────────────────────────────────
+const clientsBySocket = new Map();   // WebSocket → Client
+const clientsById    = new Map();    // id → Client
+const videoQueue     = new Set();    // Set of client ids waiting for a match
+const rateLimits     = new Map();    // id → { count, windowStart }
+
+const CONNECTION_TTL        = 180_000; // 3 min idle → automatic cleanup
+const RATE_WINDOW           = 1_000;   // 1 second window
+const RATE_MAX              = 30;      // max messages per window
+const HEARTBEAT_INTERVAL    = 15_000;  // push ping every 15s
+
+// CORS for /health and any HTTP fallback
+const CORS = {
+  "Access-Control-Allow-Origin":  "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Upgrade, Connection",
 };
 
-const RELAY_ALLOWED_TYPES = new Set(['CHAT_INIT', 'FRIEND_REQ', 'FRIEND_ACCEPT', 'signal_relay']);
-const RELAY_SAFE_FIELDS = new Set(['id', 'name', 'nickname', 'avatar', 'country', 'languages', 'gender', 'peerId', 'peerDetails', 'signal']);
+const RELAY_TYPES = new Set([
+  'CHAT_INIT', 'FRIEND_REQ', 'FRIEND_ACCEPT', 'signal_relay'
+]);
 
-const RATE_LIMIT_WINDOW = 1000;
-const RATE_LIMIT_MAX = 30;
+// Only these fields are forwarded in relay payloads
+const SAFE_FIELDS = new Set([
+  'id','name','nickname','avatar','country','languages',
+  'gender','peerId','peerDetails','signal'
+]);
 
-let broadcastDirty = false;
+// ─── Helpers ───────────────────────────────────────────────────────────────
 
 function json(type, data) {
   return JSON.stringify({ type, data });
 }
 
 function send(client, type, data) {
-  if (client.cleanedUp) return;
+  if (client.closed) return;
   try {
-    client.socket.send(json(type, data));
+    client.ws.send(json(type, data));
   } catch {
-    cleanup(client);
+    close(client);
   }
 }
 
-function scheduleBroadcast() {
-  if (broadcastDirty) return;
-  broadcastDirty = true;
+// Throttled broadcast of online count to every connected client
+let broadcastQueued = false;
+function queueBroadcast() {
+  if (broadcastQueued) return;
+  broadcastQueued = true;
   queueMicrotask(() => {
-    broadcastDirty = false;
-    const data = { online: clientsById.size };
-    for (const client of clientsBySocket.values()) {
-      if (!client.cleanedUp) send(client, "global_metrics", data);
+    broadcastQueued = false;
+    const payload = { online: clientsById.size };
+    for (const c of clientsBySocket.values()) {
+      if (!c.closed) send(c, 'global_metrics', payload);
     }
   });
 }
 
-function publicProfile(client) {
-  return client.profile ? { id: client.id, ...client.profile } : { id: client.id };
+function safeProfile(c) {
+  return c.profile ? { id: c.id, ...c.profile } : { id: c.id };
 }
 
-function matchesFilters(profile, filters = {}) {
+function matchFilters(profile, filters = {}) {
   if (!profile) return false;
-  if (filters.gender && filters.gender !== "all" && profile.gender !== filters.gender) return false;
-  if (filters.country && filters.country !== "all" && profile.country !== filters.country) return false;
-  if (filters.language && filters.language !== "all" && !profile.languages?.includes(filters.language)) return false;
+  if (filters.gender   && filters.gender   !== 'all' && profile.gender   !== filters.gender)   return false;
+  if (filters.country  && filters.country  !== 'all' && profile.country  !== filters.country)   return false;
+  if (filters.language && filters.language !== 'all' && !(profile.languages || []).includes(filters.language)) return false;
   return true;
 }
 
-function sanitizeRelayPayload(data) {
+function safeRelay(data) {
   if (!data || typeof data !== 'object') return data;
-  const safe = {};
-  for (const [key, value] of Object.entries(data)) {
-    if (RELAY_SAFE_FIELDS.has(key)) safe[key] = value;
+  const out = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (SAFE_FIELDS.has(k)) out[k] = v;
   }
-  return safe;
+  return out;
 }
 
-function relay(sender, message) {
-  const target = clientsById.get(message.target);
-  if (!target || target.cleanedUp) return;
-  const safeData = sanitizeRelayPayload(message.data);
+function relayMessage(sender, msg) {
+  const target = clientsById.get(msg.target);
+  if (!target || target.closed) return;
 
-  if (message.type === "signal_relay") {
-    send(target, "signal_relay", { peerId: sender.id, signal: safeData.signal });
+  const data = safeRelay(msg.data);
+
+  if (msg.type === 'signal_relay') {
+    // Forward raw signal (SDP / ICE) — frontend WebRTC parses it
+    send(target, 'signal_relay', { peerId: sender.id, signal: data.signal });
     return;
   }
 
-  send(target, message.type, safeData);
+  send(target, msg.type, data);
 }
 
-function removeFromVideoQueue(clientId) {
-  videoQueue.delete(clientId);
-}
+// ─── Video queue matching ──────────────────────────────────────────────────
 
-function joinVideoQueue(client) {
+function tryMatch(client) {
+  // Remove self in case they were already queued
   videoQueue.delete(client.id);
 
-  for (const partnerId of videoQueue) {
-    videoQueue.delete(partnerId);
-    const partner = clientsById.get(partnerId);
-    if (partner && partner.id !== client.id && !partner.cleanedUp) {
-      send(client, "match_found", {
-        peerId: partner.id,
-        peer: publicProfile(partner),
-        initiateCall: true,
-      });
-      send(partner, "match_found", {
-        peerId: client.id,
-        peer: publicProfile(client),
-        initiateCall: false,
-      });
-      return;
+  // Walk queue (insertion order) — first suitable partner wins
+  for (const pid of videoQueue) {
+    const partner = clientsById.get(pid);
+    if (!partner || partner.closed || partner.id === client.id) {
+      videoQueue.delete(pid);
+      continue;
     }
+
+    // Found a match
+    videoQueue.delete(pid);
+
+    send(client, 'match_found', {
+      peerId: partner.id,
+      peer: safeProfile(partner),
+      initiateCall: true,
+    });
+
+    send(partner, 'match_found', {
+      peerId: client.id,
+      peer: safeProfile(client),
+      initiateCall: false,
+    });
+
+    return; // matched
   }
 
+  // No match yet — enqueue
   videoQueue.add(client.id);
 }
 
-function checkRateLimit(client) {
+// ─── Rate limiter ──────────────────────────────────────────────────────────
+
+function rateCheck(client) {
   const now = Date.now();
   let entry = rateLimits.get(client.id);
-  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW) {
+  if (!entry || now - entry.windowStart > RATE_WINDOW) {
     entry = { count: 0, windowStart: now };
     rateLimits.set(client.id, entry);
   }
   entry.count++;
-  return entry.count <= RATE_LIMIT_MAX;
+  return entry.count <= RATE_MAX;
 }
 
-function cleanup(client) {
-  if (client.cleanedUp) return;
-  client.cleanedUp = true;
-  clientsBySocket.delete(client.socket);
+// ─── Connection lifecycle ──────────────────────────────────────────────────
+
+function close(client) {
+  if (client.closed) return;
+  client.closed = true;
+
+  clientsBySocket.delete(client.ws);
   clientsById.delete(client.id);
   videoQueue.delete(client.id);
   rateLimits.delete(client.id);
+
   if (client.idleTimer) clearTimeout(client.idleTimer);
-  try { client.socket.close(1000, "cleanup"); } catch {}
-  scheduleBroadcast();
+  if (client.heartTimer) clearInterval(client.heartTimer);
+
+  try { client.ws.close(1000, 'bye'); } catch {}
+
+  queueBroadcast();
 }
 
-function handleMessage(client, raw) {
-  let message;
-  try {
-    message = JSON.parse(raw);
-  } catch {
-    send(client, "error", { message: "Invalid JSON" });
+// Touch the idle timer — any message / open resets it
+function touchIdle(client) {
+  if (client.idleTimer) clearTimeout(client.idleTimer);
+  client.idleTimer = setTimeout(() => close(client), CONNECTION_TTL);
+}
+
+// ─── Message router ────────────────────────────────────────────────────────
+
+function onMessage(client, raw) {
+  // Reset idle timer on every message
+  touchIdle(client);
+
+  let msg;
+  try { msg = JSON.parse(raw); } catch {
+    send(client, 'error', { message: 'invalid json' });
     return;
   }
 
-  if (message.type === "ping") { send(client, "pong", { ts: Date.now() }); return; }
-  if (message.type === "pong") return;
+  // Heartbeat
+  if (msg.type === 'ping') { send(client, 'pong', { ts: Date.now() }); return; }
+  if (msg.type === 'pong') return;
 
-  if (!checkRateLimit(client)) {
-    send(client, "error", { message: "rate limited" });
+  // Rate limit
+  if (!rateCheck(client)) {
+    send(client, 'error', { message: 'rate limited' });
     return;
   }
 
-  if (message.type === "join_pool") {
-    const profile = message.data ?? {};
-    const newId = profile.id || client.id;
-    const existing = clientsById.get(newId);
+  switch (msg.type) {
 
-    if (existing && existing !== client) {
-      existing.cleanedUp = true;
-      clientsBySocket.delete(existing.socket);
-      clientsById.delete(newId);
-      videoQueue.delete(newId);
-      rateLimits.delete(newId);
-      if (existing.idleTimer) clearTimeout(existing.idleTimer);
-      try { existing.socket.close(1000, "replaced"); } catch {}
+    // ── Register / update profile ────────────────────────────────────────
+    case 'join_pool': {
+      const profile = msg.data || {};
+      const newId   = profile.id || client.id;
+
+      // If another connection holds this ID, evict it
+      const existing = clientsById.get(newId);
+      if (existing && existing !== client) {
+        existing.closed = true;
+        clientsBySocket.delete(existing.ws);
+        clientsById.delete(newId);
+        videoQueue.delete(newId);
+        rateLimits.delete(newId);
+        if (existing.idleTimer) clearTimeout(existing.idleTimer);
+        if (existing.heartTimer) clearInterval(existing.heartTimer);
+        try { existing.ws.close(1000, 'replaced'); } catch {}
+      }
+
+      // Remove old id mapping if the client changed its id
+      if (client.id !== newId) clientsById.delete(client.id);
+
+      client.id      = newId;
+      client.profile = profile;
+      clientsById.set(client.id, client);
+
+      queueBroadcast();
+      break;
     }
 
-    const oldId = client.id;
-    if (oldId !== newId) clientsById.delete(oldId);
-
-    client.id = newId;
-    client.profile = profile;
-    clientsById.set(client.id, client);
-    scheduleBroadcast();
-    return;
-  }
-
-  if (message.type === "fetch_explore") {
-    const peers = [];
-    const filters = message.data ?? {};
-    for (const peer of clientsById.values()) {
-      if (peer.id === client.id || peer.cleanedUp) continue;
-      if (!peer.profile?.name && !peer.profile?.nickname) continue;
-      const profile = publicProfile(peer);
-      if (matchesFilters(profile, filters)) peers.push(profile);
+    // ── Explore query ────────────────────────────────────────────────────
+    case 'fetch_explore': {
+      const filters = msg.data || {};
+      const peers = [];
+      for (const c of clientsById.values()) {
+        if (c.id === client.id || c.closed) continue;
+        if (!c.profile || (!c.profile.name && !c.profile.nickname)) continue;
+        const p = safeProfile(c);
+        if (matchFilters(p, filters)) peers.push(p);
+      }
+      send(client, 'explore_data', peers);
+      break;
     }
-    send(client, "explore_data", peers);
-    return;
-  }
 
-  if (message.type === "join_video_queue") { joinVideoQueue(client); return; }
-  if (message.type === "leave_video") { videoQueue.delete(client.id); return; }
+    // ── Video queue ───────────────────────────────────────────────────────
+    case 'join_video_queue':
+      tryMatch(client);
+      break;
 
-  if (RELAY_ALLOWED_TYPES.has(message.type)) {
-    relay(client, message);
+    case 'leave_video':
+      videoQueue.delete(client.id);
+      break;
+
+    // ── Relay (friend requests, chat init, WebRTC signals) ────────────────
+    default:
+      if (RELAY_TYPES.has(msg.type)) {
+        relayMessage(client, msg);
+      }
+      break;
   }
 }
+
+// ─── WebSocket handler ─────────────────────────────────────────────────────
 
 function handleWebSocket(request) {
   const pair = new WebSocketPair();
-  const [clientSocket, serverSocket] = Object.values(pair);
-  serverSocket.accept();
+  const [clientWs, serverWs] = Object.values(pair);
+  serverWs.accept();
 
   const client = {
-    id: crypto.randomUUID(),
-    profile: null,
-    socket: serverSocket,
-    cleanedUp: false,
+    id:       crypto.randomUUID(),
+    profile:  null,
+    ws:       serverWs,
+    closed:   false,
     idleTimer: null,
+    heartTimer: null,
   };
 
-  // Reset idle timer on any activity
-  function touchIdle() {
-    if (client.idleTimer) clearTimeout(client.idleTimer);
-    client.idleTimer = setTimeout(() => cleanup(client), CONNECTION_TIMEOUT);
-  }
-
-  clientsBySocket.set(serverSocket, client);
+  clientsBySocket.set(serverWs, client);
   clientsById.set(client.id, client);
-  touchIdle();
+  touchIdle(client);
 
-  serverSocket.addEventListener("message", (event) => {
-    touchIdle();
-    handleMessage(client, event.data);
-  });
+  // Server-pushed heartbeat to detect dead peers faster
+  client.heartTimer = setInterval(() => {
+    if (client.closed) { clearInterval(client.heartTimer); return; }
+    try { client.ws.send(json('ping', { ts: Date.now() })); } catch { close(client); }
+  }, HEARTBEAT_INTERVAL);
 
-  serverSocket.addEventListener("close", () => cleanup(client));
-  serverSocket.addEventListener("error", () => cleanup(client));
+  serverWs.addEventListener('message', (e) => onMessage(client, e.data));
+  serverWs.addEventListener('close',    () => close(client));
+  serverWs.addEventListener('error',    () => close(client));
 
-  scheduleBroadcast();
-  return new Response(null, { status: 101, webSocket: clientSocket });
+  queueBroadcast();
+  return new Response(null, { status: 101, webSocket: clientWs });
 }
+
+// ─── Entry point ───────────────────────────────────────────────────────────
 
 export default {
   fetch(request) {
-    if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: CORS_HEADERS });
+    // CORS preflight
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: CORS });
     }
-    if (request.headers.get("upgrade")?.toLowerCase() === "websocket") {
+
+    // WebSocket upgrade
+    const upgrade = request.headers.get('upgrade');
+    if (upgrade && upgrade.toLowerCase() === 'websocket') {
       return handleWebSocket(request);
     }
+
+    // Health-check endpoint
     const url = new URL(request.url);
-    if (url.pathname === "/health") {
+    if (url.pathname === '/health') {
       return Response.json(
         { ok: true, online: clientsById.size, queued: videoQueue.size },
-        { headers: CORS_HEADERS }
+        { headers: CORS }
       );
     }
-    return new Response("WhyChat switchboard is running.", {
-      headers: { "content-type": "text/plain; charset=utf-8", ...CORS_HEADERS },
+
+    return new Response('WhyChat switchboard is running.', {
+      headers: { 'content-type': 'text/plain; charset=utf-8', ...CORS },
     });
   },
 };

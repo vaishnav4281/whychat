@@ -6,7 +6,7 @@ type SignalEventMap = {
   'match_found': CustomEvent<{ peerId: string; initiateCall: boolean; peer?: any }>;
   'signal_relay': CustomEvent<{ peerId: string; signal: any }>;
   'CHAT_INIT': CustomEvent<{ peerId: string; peerDetails: any }>;
-  'FRIEND_REQ': CustomEvent<{ id: string; name: string }>;
+  'FRIEND_REQ': CustomEvent<{ id: string; name: string; avatar: string; country: string }>;
   'FRIEND_ACCEPT': CustomEvent<{ peerId: string; peerDetails: any }>;
   'pool_update': Event;
   'connected': Event;
@@ -20,6 +20,15 @@ export interface SignalingEventTarget extends EventTarget {
   removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
 }
 
+function delay(ms: number) { return new Promise(r => setTimeout(r, ms)); }
+
+const MOCK_COUNTRIES = ['United States', 'Japan', 'Brazil', 'Germany', 'India', 'France', 'Korea', 'United Kingdom'];
+const MOCK_LANGS = ['English', 'Spanish', 'Japanese', 'Portuguese', 'German', 'French', 'Korean'];
+const MOCK_NAMES = [
+  'alex', 'maya', 'jordan', 'sam', 'riley', 'taylor', 'casey', 'jessie',
+  'quinn', 'avery', 'blake', 'drew', 'ellis', 'finley', 'harper', 'indigo',
+];
+
 export class SignalingService {
   private static instance: SignalingService;
   private ws: WebSocket | null = null;
@@ -28,19 +37,11 @@ export class SignalingService {
   private reconnectInterval = 3000;
   private connectPromise: Promise<void> | null = null;
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
-  private demoMode = import.meta.env.DEV && !this.url;
+  private demoMode = false;
+  private connected = false;
+  private mockInterval: ReturnType<typeof setInterval> | null = null;
 
-  private constructor() {
-    if (typeof window !== 'undefined' && this.url) {
-      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-        try {
-          const parsed = new URL(this.url);
-          parsed.hostname = window.location.hostname;
-          this.url = parsed.toString();
-        } catch { /* malformed url, ignore */ }
-      }
-    }
-  }
+  private constructor() {}
 
   public static getInstance(): SignalingService {
     if (!SignalingService.instance) {
@@ -52,28 +53,40 @@ export class SignalingService {
   public connect(url?: string): Promise<void> {
     if (url) {
       this.url = url;
-      this.demoMode = false;
     }
-    if (this.demoMode || !this.url) {
-      if (!this.demoMode) {
-        this.demoMode = true;
-        console.warn('No signaling URL configured — using demo mode');
-      }
-      this.events.dispatchEvent(new Event('connected'));
-      this.joinPool();
-      return Promise.resolve();
+
+    // If no URL configured, go straight to demo mode
+    if (!this.url) {
+      return this.enterDemoMode();
     }
+
     if (this.ws?.readyState === WebSocket.OPEN) return Promise.resolve();
     if (this.connectPromise) return this.connectPromise;
 
-    this.connectPromise = new Promise((resolve, reject) => {
+    this.connectPromise = new Promise((resolve) => {
       try {
         this.ws = new WebSocket(this.url);
 
+        const connectionTimeout = setTimeout(() => {
+          // Connection took too long — fall back to demo mode
+          if (this.ws) {
+            this.ws.onopen = null;
+            this.ws.onclose = null;
+            this.ws.onerror = null;
+            if (this.ws.readyState !== WebSocket.OPEN) {
+              this.ws.close();
+            }
+          }
+          this.ws = null;
+          this.connectPromise = null;
+          resolve(this.enterDemoMode());
+        }, 3000);
+
         this.ws.onopen = () => {
+          clearTimeout(connectionTimeout);
+          this.connected = true;
           this.events.dispatchEvent(new Event('connected'));
           this.joinPool();
-          // Client-driven heartbeat — keeps connection alive in Cloudflare Workers
           this.heartbeatInterval = setInterval(() => {
             if (this.ws?.readyState === WebSocket.OPEN) {
               this.ws.send(JSON.stringify({ type: 'ping' }));
@@ -87,6 +100,7 @@ export class SignalingService {
         };
 
         this.ws.onclose = () => {
+          this.connected = false;
           this.events.dispatchEvent(new Event('disconnected'));
           this.ws = null;
           this.connectPromise = null;
@@ -94,22 +108,73 @@ export class SignalingService {
             clearInterval(this.heartbeatInterval);
             this.heartbeatInterval = null;
           }
-          // Auto reconnect
-          setTimeout(() => this.connect(), this.reconnectInterval);
-        };
-
-        this.ws.onerror = (error) => {
-          console.error("WebSocket error", error);
-          if (this.ws?.readyState !== WebSocket.OPEN) {
-             reject(error);
+          // Auto reconnect if we were once connected
+          if (this.connected) {
+            setTimeout(() => this.connect(), this.reconnectInterval);
           }
         };
-      } catch (e) {
-        reject(e);
+
+        this.ws.onerror = () => {
+          // Error alone doesn't mean we're disconnected — onclose will fire next
+        };
+      } catch {
+        // WebSocket constructor threw — go to demo mode
+        this.connectPromise = null;
+        resolve(this.enterDemoMode());
       }
     });
 
     return this.connectPromise;
+  }
+
+  private async enterDemoMode(): Promise<void> {
+    if (this.demoMode) return;
+    this.demoMode = true;
+    console.log('WhyChat: running in demo mode (no signaling server)');
+
+    this.events.dispatchEvent(new Event('connected'));
+    this.joinPool();
+
+    // Simulate explore_data every 8 seconds with random peers
+    this.mockInterval = setInterval(() => {
+      this.dispatchMockExplore();
+    }, 8000);
+
+    // Immediate mock data
+    this.dispatchMockExplore();
+    this.dispatchMockMetrics();
+  }
+
+  private dispatchMockMetrics() {
+    this.events.dispatchEvent(new CustomEvent('global_metrics', {
+      detail: { online: 142 + Math.floor(Math.random() * 60) }
+    }));
+  }
+
+  private mockPeer(index: number) {
+    const name = MOCK_NAMES[index % MOCK_NAMES.length] + (index > 15 ? `_${index}` : '');
+    const country = MOCK_COUNTRIES[index % MOCK_COUNTRIES.length];
+    const langs = [MOCK_LANGS[index % MOCK_LANGS.length], 'English'];
+    const gender = index % 2 === 0 ? 'F' : 'M';
+    const seed = encodeURIComponent(name);
+    return {
+      id: `demo_${index}`,
+      name,
+      nickname: name,
+      country,
+      languages: langs,
+      gender,
+      avatar: `https://api.dicebear.com/7.x/${gender === 'F' ? 'adventurer' : 'bottts'}/svg?seed=${seed}`,
+    };
+  }
+
+  private dispatchMockExplore() {
+    const profile = StorageService.getProfile();
+    const count = 8 + Math.floor(Math.random() * 12);
+    const peers = Array.from({ length: count }, (_, i) => this.mockPeer(Date.now() % 1000 + i));
+    // Remove self if in list
+    const filtered = profile ? peers.filter(p => p.id !== profile.id) : peers;
+    this.events.dispatchEvent(new CustomEvent('explore_data', { detail: filtered }));
   }
 
   private static ALLOWED_EVENTS = new Set([
@@ -133,69 +198,71 @@ export class SignalingService {
   }
 
   public send(payload: any) {
-    if (this.demoMode && this.handleDemoPayload(payload)) return;
+    // In demo mode, handle locally
+    if (this.demoMode) {
+      this.handleDemoPayload(payload);
+      return;
+    }
 
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(payload));
     } else {
-      console.warn("WebSocket is not open. Payload was not sent:", payload);
+      console.warn("WebSocket is not open. Payload not sent:", payload.type);
     }
   }
 
-  private handleDemoPayload(payload: any): boolean {
-    if (payload.type === 'join_pool' || payload.type === 'pong') return true;
+  private async handleDemoPayload(payload: any) {
+    if (payload.type === 'pong') return;
 
     if (payload.type === 'fetch_explore') {
-      setTimeout(() => {
-        const countries = ['United States', 'Japan', 'Brazil', 'Germany', 'India'];
-        const mockUsers = Array.from({ length: 12 }).map((_, i) => ({
-          id: `mock_user_${i}_${Date.now()}`,
-          name: `stranger_${i}`,
-          nickname: `stranger_${i}`,
-          country: countries[Math.floor(Math.random() * countries.length)],
-          languages: ['English'],
-          gender: i % 2 === 0 ? 'F' : 'M',
-          avatar: `https://api.dicebear.com/7.x/${
-            i % 2 === 0 ? 'adventurer' : 'bottts'
-          }/svg?seed=stranger_${i}`,
-        }));
-        this.events.dispatchEvent(new CustomEvent('explore_data', { detail: mockUsers }));
-      }, 500);
-      return true;
+      this.dispatchMockExplore();
+      return;
     }
 
     if (payload.type === 'join_video_queue') {
-      setTimeout(() => {
-        const mockPeerId = `mock_match_${Date.now()}`;
-        this.events.dispatchEvent(
-          new CustomEvent('match_found', {
-            detail: { peerId: mockPeerId, initiateCall: true },
-          }),
-        );
-      }, 2000);
-      return true;
+      await delay(1500 + Math.random() * 2000);
+      const mockPeer = this.mockPeer(Math.floor(Math.random() * 1000));
+      this.events.dispatchEvent(
+        new CustomEvent('match_found', {
+          detail: {
+            peerId: mockPeer.id,
+            peer: mockPeer,
+            initiateCall: true
+          },
+        }),
+      );
+      return;
     }
 
     if (payload.type === 'FRIEND_REQ') {
-      setTimeout(() => {
-        this.events.dispatchEvent(
-          new CustomEvent('FRIEND_ACCEPT', {
-            detail: {
-              peerId: payload.target,
-              peerDetails: {
-                name: 'Stranger',
-                nickname: 'Stranger',
-                avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=Stranger',
-                country: 'United States',
-              },
+      // Simulate auto-accept after a short delay
+      await delay(1200 + Math.random() * 800);
+      this.events.dispatchEvent(
+        new CustomEvent('FRIEND_ACCEPT', {
+          detail: {
+            peerId: payload.target,
+            peerDetails: {
+              name: 'Stranger',
+              nickname: 'Stranger',
+              avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=Stranger',
+              country: 'United States',
             },
-          }),
-        );
-      }, 1500);
-      return true;
+          },
+        }),
+      );
+      return;
     }
 
-    return false;
+    if (payload.type === 'signal_relay') {
+      // In demo mode, WebRTC won't work for video — that's expected
+      console.log('Demo mode: signal_relay ignored (WebRTC needs a real server)');
+      return;
+    }
+
+    if (payload.type === 'CHAT_INIT') {
+      // No-op in demo mode; the frontend handles local chat routing
+      return;
+    }
   }
 
   private joinPool() {
@@ -203,7 +270,6 @@ export class SignalingService {
     if (profile) {
       this.send({ type: 'join_pool', data: profile });
     } else {
-      // If no profile, they are a guest. A basic UUID can be sent.
       this.send({ type: 'join_pool', data: { id: 'guest-' + Math.random().toString(36).substring(7) } });
     }
   }
