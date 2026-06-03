@@ -8,20 +8,20 @@ import { COUNTRIES, LANGUAGES, flagFor, avatarFor, type Gender, type UserProfile
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "WhyChat — Connect with Strangers Worldwide | Free Global Chat | No Signup" },
-      { name: "description", content: "Join WhyChat and meet strangers from 150+ countries. Free global chat platform for language exchange, making friends, and cultural discovery. Supports English, Hindi, Tamil, Malayalam, Telugu, Kannada, Bengali, Spanish, Japanese & more. Real-time messaging, no signup required." },
-      { name: "keywords", content: "chat with strangers, online chat, free chat app, global chat, language exchange, meet new people, anonymous chat, text chat, make friends online, international chat, why chat, stranger chat, hindi chat, tamil chat, malayalam chat, telugu chat, india chat, language practice, free messaging, no signup chat, private chat" },
+      { title: "WhyChat — Chat with Strangers Worldwide | Free Random Chat | No Signup" },
+      { name: "description", content: "WhyChat is the best free online chat platform to chat with strangers from 150+ countries. Random chat, language exchange, make friends online, and meet new people. Supports English, Hindi, Tamil, Malayalam, Telugu, Kannada, Bengali, Spanish, Japanese, Arabic & more. Real-time messaging, no signup, 100% private." },
+      { name: "keywords", content: "chat with strangers, random chat, free online chat, talk to strangers, stranger chat, online chat rooms, free chat app, meet new people online, make friends online, language exchange, anonymous chat, text chat, international chat, global chat, india chat, hindi chat, tamil chat, malayalam chat, telugu chat, kannada chat, bengali chat, spanish chat, japanese chat, arabic chat, why chat, why chat app, free messaging app, no signup chat, private chat, random video chat, online friends, chat platform, instant messaging, free text chat, chat website, omegle alternative, chat rooms free" },
       { name: "robots", content: "index, follow" },
       { name: "googlebot", content: "index, follow" },
       { property: "og:title", content: "WhyChat — Connect with Strangers Worldwide | Free & Private" },
-      { property: "og:description", content: "Meet new people from around the world. Free, instant, and private. Supports 26+ languages including Hindi, Tamil, Malayalam & more." },
+      { property: "og:description", content: "Chat with strangers from 150+ countries for free. Random chat, language exchange, make friends online. No signup, 100% private. Supports English, Hindi, Tamil, Malayalam & more." },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://whychat.pages.dev" },
       { property: "og:site_name", content: "WhyChat" },
       { property: "og:locale", content: "en_US" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "WhyChat — Connect with Strangers Worldwide" },
-      { name: "twitter:description", content: "Free global chat to meet people from 150+ countries. No signup, no data stored. Supports 26+ languages." },
+      { name: "twitter:description", content: "Chat with strangers worldwide for free. Random chat, make friends online, language exchange. No signup. Supports 26+ languages including Hindi, Tamil & Malayalam." },
       { name: "twitter:site", content: "@whychat" },
       { name: "twitter:creator", content: "@whychat" },
     ],
@@ -36,7 +36,7 @@ export const Route = createFileRoute("/")({
           "@type": "WebApplication",
           name: "WhyChat",
           url: "https://whychat.pages.dev",
-          description: "Free global chat platform to meet strangers, make friends, practice languages, and discover cultures through real-time messaging. Supports 26+ languages with no signup required.",
+          description: "Chat with strangers online for free. Random chat platform to meet new people, make friends, practice languages, and discover cultures. Supports 26+ languages including Hindi, Tamil, Malayalam, Telugu, Bengali with no signup required.",
           applicationCategory: "SocialNetworking",
           operatingSystem: "All",
           browserRequirements: "Requires JavaScript",
@@ -74,8 +74,9 @@ function LandingHero({ onGetStarted, hasSession }: { onGetStarted: () => void; h
         </h1>
 
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6 leading-relaxed">
-          WhyChat is a free, instant messaging platform to meet new people from over 150 countries.
-          Practice languages, make friends, and explore cultures — all from your browser.
+          WhyChat is the best free online chat platform to <strong>chat with strangers</strong> from over 150 countries.
+          <strong>Random chat</strong> instantly, <strong>make friends online</strong>, practice languages,
+          and explore cultures — all from your browser, no signup needed.
         </p>
 
         <div className="flex items-center justify-center gap-3 mb-10 flex-wrap">
@@ -88,7 +89,7 @@ function LandingHero({ onGetStarted, hasSession }: { onGetStarted: () => void; h
           className="btn-gradient px-10 py-5 text-lg font-bold text-center flex items-center gap-3 shadow-xl shadow-[#7C3AED]/30 mx-auto mb-4 animate-in">
           {hasSession ? 'Continue to Chat' : "Create Your Profile — It's Free"} <ArrowRight className="w-5 h-5" />
         </button>
-        <p className="text-xs text-muted-foreground mb-16">No signup, no download, no data stored. Just pick a name and start.</p>
+        <p className="text-xs text-muted-foreground mb-16">No signup, no download, no data stored. Just pick a name and start chatting with strangers instantly. The best Omegle alternative for free random chat.</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-2xl mx-auto">
           {[
@@ -109,10 +110,10 @@ function LandingHero({ onGetStarted, hasSession }: { onGetStarted: () => void; h
 
 function FeaturesSection() {
   const features = [
-    { icon: Compass, title: "Instant Matching", desc: "Discover people nearby and around the world in real-time. Filter by gender, country, and language to find your perfect conversation partner." },
-    { icon: Languages, title: "Language Exchange", desc: "Practice English, Spanish, Mandarin, Japanese, and 20+ languages with native speakers. Perfect your fluency through real conversations." },
-    { icon: Globe2, title: "Global Community", desc: "Connect with people from the United States, Japan, Brazil, Germany, India, Korea, and 150+ countries. Explore cultures without leaving home." },
-    { icon: Shield, title: "Private & Secure", desc: "Your data stays on your device. No accounts, no emails, no tracking. Chat anonymously with end-to-end encrypted messaging." },
+    { icon: Compass, title: "Random Chat & Instant Matching", desc: "Chat with strangers instantly in our free random chat. Discover people nearby and worldwide in real-time. Filter by gender, country, and language to find your perfect conversation partner. The best way to talk to strangers online." },
+    { icon: Languages, title: "Language Exchange Practice", desc: "Practice English, Spanish, Mandarin, Japanese, Hindi, Tamil, Malayalam, and 20+ languages with native speakers. Perfect your fluency through real conversations. Free language exchange with strangers from around the world." },
+    { icon: Globe2, title: "Global Community", desc: "Connect with people from the United States, Japan, Brazil, Germany, India, Korea, and 150+ countries. Make friends online across borders. Explore cultures without leaving home through international chat." },
+    { icon: Shield, title: "Private & Secure Anonymous Chat", desc: "Your data stays on your device. No accounts, no emails, no tracking. Chat anonymously with strangers — 100% private and secure. The safest way to meet new people online." },
   ];
   return (
     <section id="features" className="px-6 py-24 md:py-32">
@@ -140,9 +141,9 @@ function FeaturesSection() {
 
 function HowItWorksSection({ onGetStarted }: { onGetStarted: () => void }) {
   const steps = [
-    { step: "01", title: "Create Your Profile", desc: "Pick a nickname, your country, and languages you speak. No email, no password — just you." },
-    { step: "02", title: "Discover People", desc: "Browse live profiles filtered by gender, country, or language. See who's online right now." },
-    { step: "03", title: "Start Chatting", desc: "Send a friend request or message instantly. Make connections that last." },
+    { step: "01", title: "Create Your Profile", desc: "Pick a nickname, your country, and languages you speak. No email, no password — just you. Ready to chat with strangers in seconds." },
+    { step: "02", title: "Discover People", desc: "Browse live profiles filtered by gender, country, or language. See who's online right now and start a random chat instantly." },
+    { step: "03", title: "Start Chatting", desc: "Message strangers instantly, make friends online, practice languages. Free random chat with people from 150+ countries." },
   ];
   return (
     <section className="px-6 py-24 md:py-32 bg-gradient-to-b from-transparent via-[#7C3AED]/5 to-transparent">
@@ -184,7 +185,7 @@ function CountriesSection() {
       <div className="max-w-4xl mx-auto text-center">
         <div className="badge-gradient mb-4 inline-block">Global Reach</div>
         <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4">Connect across borders</h2>
-        <p className="text-muted-foreground max-w-xl mx-auto mb-10">People from 150+ countries use WhyChat to make friends and practice languages.</p>
+          <p className="text-muted-foreground max-w-xl mx-auto mb-10">People from 150+ countries use WhyChat to chat with strangers, make friends online, practice languages, and explore new cultures through free random chat. Join the global community today.</p>
         {rows.map((row, i) => (
           <div key={i} className="flex flex-wrap justify-center gap-2 mb-3">
             {row.map((c) => (
@@ -279,13 +280,47 @@ function CTASection({ onGetStarted, hasSession }: { onGetStarted: () => void; ha
           Ready to meet the world?
         </h2>
         <p className="text-muted-foreground max-w-lg mx-auto mb-8">
-          Join thousands of people already connecting on WhyChat. No signup, no download — just open your browser and start chatting.
+          Join thousands of people already chatting with strangers on WhyChat. The best free random chat and online chat platform. No signup, no download — just open your browser and start talking to strangers instantly. Make friends online, practice languages, and explore the world.
         </p>
         <div className="flex items-center justify-center gap-4">
           <button onClick={onGetStarted}
             className="btn-gradient px-8 py-4 text-base font-semibold inline-flex items-center gap-2 shadow-lg shadow-[#7C3AED]/25">
             {hasSession ? 'Continue to Chat' : 'Get Started Free'} <ArrowRight className="w-4 h-4" />
           </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SEOSection() {
+  const faqs = [
+    { q: "What is WhyChat?", a: "WhyChat is a free online chat platform to chat with strangers from 150+ countries. It offers random chat, language exchange, and the ability to make friends online without any signup or download." },
+    { q: "Is WhyChat free?", a: "Yes, WhyChat is 100% free. No hidden charges, no premium plans. You can chat with strangers online, make friends, and practice languages completely free." },
+    { q: "How to chat with strangers online?", a: "Simply pick a nickname, select your country and languages, and start browsing people online. Click Message to begin a random chat instantly. No email or phone number needed." },
+    { q: "What languages are supported?", a: "WhyChat supports 26+ languages including English, Hindi, Tamil, Malayalam, Telugu, Kannada, Bengali, Spanish, French, Japanese, Mandarin, Arabic, Portuguese, German, Korean, and more." },
+    { q: "Is WhyChat safe for anonymous chat?", a: "Yes. We never store your data on our servers. Your profile stays on your device. No accounts, no tracking, no chat logs. The safest way to talk to strangers online." },
+    { q: "Can I use WhyChat on mobile?", a: "WhyChat works on any device with a browser — phone, tablet, or desktop. No app download needed. Instant chat with strangers from anywhere." },
+    { q: "WhyChat vs Omegle alternatives?", a: "WhyChat is the best Omegle alternative for free random chat with strangers. Unlike Omegle, we offer language filters, country filters, gender filters, and a global community of real people." },
+  ];
+  return (
+    <section className="px-6 py-24 md:py-32 bg-gradient-to-b from-transparent via-[#7C3AED]/5 to-transparent">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-16">
+          <div className="badge-gradient mb-4 inline-block">FAQs</div>
+          <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4">Everything about chat with strangers</h2>
+          <p className="text-muted-foreground max-w-xl mx-auto">WhyChat is the best free random chat platform to meet new people online, make friends, and practice languages.</p>
+        </div>
+        <div className="space-y-4">
+          {faqs.map((f) => (
+            <details key={f.q} className="card-premium p-5 md:p-6 group open:ring-1 open:ring-[#7C3AED]/20">
+              <summary className="font-semibold text-sm md:text-base cursor-pointer list-none flex items-center justify-between gap-4">
+                <span>{f.q}</span>
+                <span className="text-[#7C3AED] text-lg transition-transform duration-200 group-open:rotate-180">▾</span>
+              </summary>
+              <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{f.a}</p>
+            </details>
+          ))}
         </div>
       </div>
     </section>
@@ -301,10 +336,24 @@ function LandingFooter() {
           <span className="font-bold bg-gradient-to-r from-[#7C3AED] to-[#EC4899] bg-clip-text text-transparent">WhyChat</span>
         </div>
         <div className="flex items-center gap-6 text-xs text-muted-foreground">
-          <span>© 2026 WhyChat</span>
+          <span>© 2026 WhyChat — Chat with Strangers Worldwide</span>
           <a href="#" className="hover:text-foreground transition">Privacy</a>
           <a href="#" className="hover:text-foreground transition">Terms</a>
           <a href="#" className="hover:text-foreground transition">Contact</a>
+        </div>
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-[10px] text-muted-foreground/60 mt-3 max-w-2xl mx-auto text-center">
+          <span>chat with strangers</span> <span>·</span>
+          <span>random chat</span> <span>·</span>
+          <span>free online chat</span> <span>·</span>
+          <span>talk to strangers</span> <span>·</span>
+          <span>make friends online</span> <span>·</span>
+          <span>language exchange</span> <span>·</span>
+          <span>anonymous chat</span> <span>·</span>
+          <span>meet new people online</span> <span>·</span>
+          <span>india chat</span> <span>·</span>
+          <span>hindi chat</span> <span>·</span>
+          <span>tamil chat</span> <span>·</span>
+          <span>omegle alternative</span>
         </div>
       </div>
     </footer>
@@ -358,6 +407,7 @@ function Landing() {
             </section>
           </>
         )}
+        <SEOSection />
         <CTASection onGetStarted={scrollToRegister} hasSession={hasSession} />
         <LandingFooter />
       </div>
