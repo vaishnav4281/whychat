@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, MessageCircle, Check, X } from "lucide-react";
+import { Users, MessageCircle, Check, X, UserRoundPlus } from "lucide-react";
 import { flagFor, type PeerUser } from "@/lib/peerStore";
 import { StorageService, type Friend, type FriendRequest } from "@/services/storage";
 import { discovery } from "@/services/discovery";
@@ -35,15 +35,20 @@ export function FriendsTab({ onOpenChat }: Props) {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-5 md:p-6">
-      {/* Incoming Requests */}
-      {requests.length > 0 && (
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <Users className="w-5 h-5 text-[#EC4899]" />
-            <h2 className="text-lg font-bold">Connection Requests</h2>
-            <span className="tag-premium text-xs ml-auto">{requests.length}</span>
+    <div className="max-w-2xl mx-auto p-5 md:p-6 space-y-8">
+      {/* Requests */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <UserRoundPlus className="w-5 h-5 text-[#EC4899]" />
+          <h2 className="text-lg font-bold">Requests</h2>
+          {requests.length > 0 && <span className="tag-premium text-xs">{requests.length}</span>}
+        </div>
+        {requests.length === 0 ? (
+          <div className="text-sm text-muted-foreground text-center py-8 bg-secondary/50 rounded-xl">
+            <UserRoundPlus className="w-8 h-8 mx-auto mb-2 opacity-30" />
+            No pending requests
           </div>
+        ) : (
           <div className="space-y-2">
             {requests.map((r) => (
               <div key={r.id}
@@ -64,37 +69,40 @@ export function FriendsTab({ onOpenChat }: Props) {
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </section>
 
-      {/* Friends List */}
-      <div className="flex items-center gap-2 mb-4">
-        <Users className="w-5 h-5 text-[#7C3AED]" />
-        <h2 className="text-xl font-bold">Friends</h2>
-        <span className="tag-premium text-xs ml-auto">{friends.length}</span>
-      </div>
-      {friends.length === 0 && (
-        <div className="text-sm text-muted-foreground text-center py-16">
-          <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          No friends yet. Send a connection request to someone in Explore.
+      {/* Friends */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <Users className="w-5 h-5 text-[#7C3AED]" />
+          <h2 className="text-xl font-bold">Friends</h2>
+          <span className="tag-premium text-xs ml-auto">{friends.length}</span>
         </div>
-      )}
-      <div className="space-y-2">
-        {friends.map((f) => (
-          <button key={f.id} onClick={() => handleOpenChat(f)}
-            className="w-full card-premium-hover card-accent-top p-3.5 flex items-center gap-3 hover:opacity-80 transition text-left">
-            <div className="relative shrink-0">
-              <img src={f.avatar} alt="" className="w-11 h-11 rounded-full bg-secondary" />
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 ring-2 ring-card" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold truncate">{f.name}</div>
-              <div className="tag-premium !text-[10px]">{flagFor(f.country)} {f.country}</div>
-            </div>
-            <MessageCircle className="w-4 h-4 text-muted-foreground shrink-0" />
-          </button>
-        ))}
-      </div>
+        {friends.length === 0 ? (
+          <div className="text-sm text-muted-foreground text-center py-8 bg-secondary/50 rounded-xl">
+            <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
+            No friends yet
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {friends.map((f) => (
+              <button key={f.id} onClick={() => handleOpenChat(f)}
+                className="w-full card-premium-hover card-accent-top p-3.5 flex items-center gap-3 hover:opacity-80 transition text-left">
+                <div className="relative shrink-0">
+                  <img src={f.avatar} alt="" className="w-11 h-11 rounded-full bg-secondary" />
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 ring-2 ring-card" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold truncate">{f.name}</div>
+                  <div className="tag-premium !text-[10px]">{flagFor(f.country)} {f.country}</div>
+                </div>
+                <MessageCircle className="w-4 h-4 text-muted-foreground shrink-0" />
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

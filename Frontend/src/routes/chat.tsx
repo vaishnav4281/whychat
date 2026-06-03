@@ -82,18 +82,18 @@ function ChatRoute() {
   return (
     <>
       <TopNav profile={profile} onLogout={() => { StorageService.clearProfile(); navigate({ to: '/' }); }} online={online} />
-      <main className="flex-1 flex flex-col overflow-hidden pb-14">
-        <div className={tab !== "explore" ? "hidden" : "flex-1 overflow-y-auto"}>
+      <main className="flex-1 flex flex-col overflow-hidden">
+        <div className={tab !== "explore" ? "hidden" : "flex-1 overflow-y-auto pb-20"}>
           <ExploreDashboard onOpenChat={goChat} />
         </div>
         <div className={tab !== "chats" ? "hidden" : "flex-1 flex overflow-hidden"}>
           {!openChat ? (
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto pb-20">
               <ChatsList onOpenChat={goChat} />
             </div>
           ) : (
             <>
-              <div className="w-80 hidden md:flex flex-col overflow-y-auto border-r border-border">
+              <div className="w-80 hidden md:flex flex-col overflow-y-auto border-r border-border pb-20">
                 <ChatsList onOpenChat={goChat} />
               </div>
               <div className="flex-1 flex flex-col overflow-hidden">
@@ -102,7 +102,7 @@ function ChatRoute() {
             </>
           )}
         </div>
-        <div className={tab !== "friends" ? "hidden" : "flex-1 overflow-y-auto"}>
+        <div className={tab !== "friends" ? "hidden" : "flex-1 overflow-y-auto pb-20"}>
           <FriendsTab onOpenChat={goChat} />
         </div>
       </main>
