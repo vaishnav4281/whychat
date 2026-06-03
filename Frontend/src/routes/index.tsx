@@ -8,25 +8,25 @@ import { COUNTRIES, LANGUAGES, flagFor, avatarFor, type Gender, type UserProfile
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "MetWitsh00 — Chat with Strangers Worldwide | Free Random Chat | No Signup" },
-      { name: "description", content: "MetWitsh00 is the best free online chat platform to chat with strangers from 150+ countries. Random chat, language exchange, make friends online, and meet new people. Supports English, Hindi, Tamil, Malayalam, Telugu, Kannada, Bengali, Spanish, Japanese, Arabic & more. Real-time messaging, no signup, 100% private." },
+      { title: "MetWithStrangers — Chat with Strangers Worldwide | Free Random Chat | No Signup" },
+      { name: "description", content: "MetWithStrangers is the best free online chat platform to chat with strangers from 150+ countries. Random chat, language exchange, make friends online, and meet new people. Supports English, Hindi, Tamil, Malayalam, Telugu, Kannada, Bengali, Spanish, Japanese, Arabic & more. Real-time messaging, no signup, 100% private." },
       { name: "keywords", content: "chat with strangers, random chat, free online chat, talk to strangers, stranger chat, online chat rooms, free chat app, meet new people online, make friends online, language exchange, anonymous chat, text chat, international chat, global chat, india chat, hindi chat, tamil chat, malayalam chat, telugu chat, kannada chat, bengali chat, spanish chat, japanese chat, arabic chat, why chat, why chat app, free messaging app, no signup chat, private chat, random video chat, online friends, chat platform, instant messaging, free text chat, chat website, omegle alternative, chat rooms free" },
       { name: "robots", content: "index, follow" },
       { name: "googlebot", content: "index, follow" },
-      { property: "og:title", content: "MetWitsh00 — Connect with Strangers Worldwide | Free & Private" },
+      { property: "og:title", content: "MetWithStrangers — Connect with Strangers Worldwide | Free & Private" },
       { property: "og:description", content: "Chat with strangers from 150+ countries for free. Random chat, language exchange, make friends online. No signup, 100% private. Supports English, Hindi, Tamil, Malayalam & more." },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "https://metwitsh00.pages.dev" },
-      { property: "og:site_name", content: "MetWitsh00" },
+      { property: "og:url", content: "https://metwithstrangers.pages.dev" },
+      { property: "og:site_name", content: "MetWithStrangers" },
       { property: "og:locale", content: "en_US" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "MetWitsh00 — Connect with Strangers Worldwide" },
+      { name: "twitter:title", content: "MetWithStrangers — Connect with Strangers Worldwide" },
       { name: "twitter:description", content: "Chat with strangers worldwide for free. Random chat, make friends online, language exchange. No signup. Supports 26+ languages including Hindi, Tamil & Malayalam." },
-      { name: "twitter:site", content: "@metwitsh00" },
-      { name: "twitter:creator", content: "@metwitsh00" },
+      { name: "twitter:site", content: "@metwithstrangers" },
+      { name: "twitter:creator", content: "@metwithstrangers" },
     ],
     links: [
-      { rel: "canonical", href: "https://metwitsh00.pages.dev" },
+      { rel: "canonical", href: "https://metwithstrangers.pages.dev" },
     ],
     scripts: [
       {
@@ -34,14 +34,14 @@ export const Route = createFileRoute("/")({
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "WebApplication",
-          name: "MetWitsh00",
-          url: "https://metwitsh00.pages.dev",
+          name: "MetWithStrangers",
+          url: "https://metwithstrangers.pages.dev",
           description: "Chat with strangers online for free. Random chat platform to meet new people, make friends, practice languages, and discover cultures. Supports 26+ languages including Hindi, Tamil, Malayalam, Telugu, Bengali with no signup required.",
           applicationCategory: "SocialNetworking",
           operatingSystem: "All",
           browserRequirements: "Requires JavaScript",
           offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-          author: { "@type": "Organization", name: "MetWitsh00" },
+          author: { "@type": "Organization", name: "MetWithStrangers" },
           inLanguage: ["English", "Hindi", "Tamil", "Malayalam", "Telugu", "Kannada", "Bengali", "Spanish", "Japanese", "Mandarin", "Arabic", "Portuguese", "French", "German", "Korean"],
         }),
       },
@@ -74,7 +74,7 @@ function LandingHero({ onGetStarted, hasSession }: { onGetStarted: () => void; h
         </h1>
 
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6 leading-relaxed">
-          MetWitsh00 is the best free online chat platform to <strong>chat with strangers</strong> from over 150 countries.
+          MetWithStrangers is the best free online chat platform to <strong>chat with strangers</strong> from over 150 countries.
           <strong>Random chat</strong> instantly, <strong>make friends online</strong>, practice languages,
           and explore cultures — all from your browser, no signup needed.
         </p>
@@ -121,7 +121,7 @@ function FeaturesSection() {
         <div className="text-center mb-16">
           <div className="badge-gradient mb-4 inline-block">Features</div>
           <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4">Everything you need to connect</h2>
-          <p className="text-muted-foreground max-w-xl mx-auto">MetWitsh00 makes it easy to meet new people from anywhere in the world, instantly.</p>
+          <p className="text-muted-foreground max-w-xl mx-auto">MetWithStrangers makes it easy to meet new people from anywhere in the world, instantly.</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {features.map((f, i) => (
@@ -185,7 +185,7 @@ function CountriesSection() {
       <div className="max-w-4xl mx-auto text-center">
         <div className="badge-gradient mb-4 inline-block">Global Reach</div>
         <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4">Connect across borders</h2>
-          <p className="text-muted-foreground max-w-xl mx-auto mb-10">People from 150+ countries use MetWitsh00 to chat with strangers, make friends online, practice languages, and explore new cultures through free random chat. Join the global community today.</p>
+          <p className="text-muted-foreground max-w-xl mx-auto mb-10">People from 150+ countries use MetWithStrangers to chat with strangers, make friends online, practice languages, and explore new cultures through free random chat. Join the global community today.</p>
         {rows.map((row, i) => (
           <div key={i} className="flex flex-wrap justify-center gap-2 mb-3">
             {row.map((c) => (
@@ -280,7 +280,7 @@ function CTASection({ onGetStarted, hasSession }: { onGetStarted: () => void; ha
           Ready to meet the world?
         </h2>
         <p className="text-muted-foreground max-w-lg mx-auto mb-8">
-          Join thousands of people already chatting with strangers on MetWitsh00. The best free random chat and online chat platform. No signup, no download — just open your browser and start talking to strangers instantly. Make friends online, practice languages, and explore the world.
+          Join thousands of people already chatting with strangers on MetWithStrangers. The best free random chat and online chat platform. No signup, no download — just open your browser and start talking to strangers instantly. Make friends online, practice languages, and explore the world.
         </p>
         <div className="flex items-center justify-center gap-4">
           <button onClick={onGetStarted}
@@ -295,13 +295,13 @@ function CTASection({ onGetStarted, hasSession }: { onGetStarted: () => void; ha
 
 function SEOSection() {
   const faqs = [
-    { q: "What is MetWitsh00?", a: "MetWitsh00 is a free online chat platform to chat with strangers from 150+ countries. It offers random chat, language exchange, and the ability to make friends online without any signup or download." },
-    { q: "Is MetWitsh00 free?", a: "Yes, MetWitsh00 is 100% free. No hidden charges, no premium plans. You can chat with strangers online, make friends, and practice languages completely free." },
+    { q: "What is MetWithStrangers?", a: "MetWithStrangers is a free online chat platform to chat with strangers from 150+ countries. It offers random chat, language exchange, and the ability to make friends online without any signup or download." },
+    { q: "Is MetWithStrangers free?", a: "Yes, MetWithStrangers is 100% free. No hidden charges, no premium plans. You can chat with strangers online, make friends, and practice languages completely free." },
     { q: "How to chat with strangers online?", a: "Simply pick a nickname, select your country and languages, and start browsing people online. Click Message to begin a random chat instantly. No email or phone number needed." },
-    { q: "What languages are supported?", a: "MetWitsh00 supports 26+ languages including English, Hindi, Tamil, Malayalam, Telugu, Kannada, Bengali, Spanish, French, Japanese, Mandarin, Arabic, Portuguese, German, Korean, and more." },
-    { q: "Is MetWitsh00 safe for anonymous chat?", a: "Yes. We never store your data on our servers. Your profile stays on your device. No accounts, no tracking, no chat logs. The safest way to talk to strangers online." },
-    { q: "Can I use MetWitsh00 on mobile?", a: "MetWitsh00 works on any device with a browser — phone, tablet, or desktop. No app download needed. Instant chat with strangers from anywhere." },
-    { q: "MetWitsh00 vs Omegle alternatives?", a: "MetWitsh00 is the best Omegle alternative for free random chat with strangers. Unlike Omegle, we offer language filters, country filters, gender filters, and a global community of real people." },
+    { q: "What languages are supported?", a: "MetWithStrangers supports 26+ languages including English, Hindi, Tamil, Malayalam, Telugu, Kannada, Bengali, Spanish, French, Japanese, Mandarin, Arabic, Portuguese, German, Korean, and more." },
+    { q: "Is MetWithStrangers safe for anonymous chat?", a: "Yes. We never store your data on our servers. Your profile stays on your device. No accounts, no tracking, no chat logs. The safest way to talk to strangers online." },
+    { q: "Can I use MetWithStrangers on mobile?", a: "MetWithStrangers works on any device with a browser — phone, tablet, or desktop. No app download needed. Instant chat with strangers from anywhere." },
+    { q: "MetWithStrangers vs Omegle alternatives?", a: "MetWithStrangers is the best Omegle alternative for free random chat with strangers. Unlike Omegle, we offer language filters, country filters, gender filters, and a global community of real people." },
   ];
   return (
     <section className="px-6 py-24 md:py-32 bg-gradient-to-b from-transparent via-[#7C3AED]/5 to-transparent">
@@ -309,7 +309,7 @@ function SEOSection() {
         <div className="text-center mb-16">
           <div className="badge-gradient mb-4 inline-block">FAQs</div>
           <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4">Everything about chat with strangers</h2>
-          <p className="text-muted-foreground max-w-xl mx-auto">MetWitsh00 is the best free random chat platform to meet new people online, make friends, and practice languages.</p>
+          <p className="text-muted-foreground max-w-xl mx-auto">MetWithStrangers is the best free random chat platform to meet new people online, make friends, and practice languages.</p>
         </div>
         <div className="space-y-4">
           {faqs.map((f) => (
@@ -333,10 +333,10 @@ function LandingFooter() {
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-[#7C3AED]" />
-          <span className="font-bold bg-gradient-to-r from-[#7C3AED] to-[#EC4899] bg-clip-text text-transparent">MetWitsh00</span>
+          <span className="font-bold bg-gradient-to-r from-[#7C3AED] to-[#EC4899] bg-clip-text text-transparent">MetWithStrangers</span>
         </div>
         <div className="flex items-center gap-6 text-xs text-muted-foreground">
-          <span>© 2026 MetWitsh00 — Chat with Strangers Worldwide</span>
+          <span>© 2026 MetWithStrangers — Chat with Strangers Worldwide</span>
           <a href="#" className="hover:text-foreground transition">Privacy</a>
           <a href="#" className="hover:text-foreground transition">Terms</a>
           <a href="#" className="hover:text-foreground transition">Contact</a>

@@ -1,7 +1,7 @@
-# MetWitsh00 — Global Chat Platform
+# MetWithStrangers — Global Chat Platform
 
 ## About
-MetWitsh00 is a free, instant messaging platform to meet strangers from 150+ countries. Practice languages, make friends, and explore cultures — no signup required, no data stored on servers.
+MetWithStrangers is a free, instant messaging platform to meet strangers from 150+ countries. Practice languages, make friends, and explore cultures — no signup required, no data stored on servers.
 
 ## Key Features
 - Instant matching with people worldwide
@@ -25,4 +25,4 @@ MetWitsh00 is a free, instant messaging platform to meet strangers from 150+ cou
 - Explore, Chats, Friends tabs with real-time WebSocket pool
 
 ## Availability
-The platform is live at https://metwitsh00.pages.dev
+The platform is live at https://metwithstrangers.pages.dev

@@ -12,8 +12,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
-const SITE_TITLE = "MetWitsh00 — Connect with Strangers Worldwide";
-const SITE_DESC = "MetWitsh00 is a free global chat platform to meet strangers, make friends, practice languages, and discover cultures through real-time messaging. Connect instantly with people from 150+ countries.";
+const SITE_TITLE = "MetWithStrangers — Connect with Strangers Worldwide";
+const SITE_DESC = "MetWithStrangers is a free global chat platform to meet strangers, make friends, practice languages, and discover cultures through real-time messaging. Connect instantly with people from 150+ countries.";
 
 function NotFoundComponent() {
   return (
@@ -103,26 +103,26 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: SITE_TITLE },
       { name: "description", content: SITE_DESC },
       { name: "keywords", content: "chat with strangers, online chat, global chat, language exchange, meet new people, free chat app, anonymous chat, video chat alternative, text chat, make friends online, why chat" },
-      { name: "author", content: "MetWitsh00" },
+      { name: "author", content: "MetWithStrangers" },
       { name: "google-site-verification", content: "xQlFT77K7626uxRB2b7tVAyHm1rNm6-e4Am2lcXey4Y" },
       { name: "robots", content: "index, follow" },
       { name: "googlebot", content: "index, follow" },
       { property: "og:title", content: SITE_TITLE },
       { property: "og:description", content: SITE_DESC },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "https://metwitsh00.pages.dev" },
-      { property: "og:site_name", content: "MetWitsh00" },
+      { property: "og:url", content: "https://metwithstrangers.pages.dev" },
+      { property: "og:site_name", content: "MetWithStrangers" },
       { property: "og:locale", content: "en_US" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: SITE_TITLE },
       { name: "twitter:description", content: SITE_DESC },
-      { name: "twitter:site", content: "@metwitsh00" },
-      { name: "twitter:creator", content: "@metwitsh00" },
+      { name: "twitter:site", content: "@metwithstrangers" },
+      { name: "twitter:creator", content: "@metwithstrangers" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "canonical", href: "https://metwitsh00.pages.dev" },
-      { rel: "sitemap", type: "application/xml", href: "https://metwitsh00.pages.dev/sitemap.xml" },
+      { rel: "canonical", href: "https://metwithstrangers.pages.dev" },
+      { rel: "sitemap", type: "application/xml", href: "https://metwithstrangers.pages.dev/sitemap.xml" },
     ],
   }),
   shellComponent: RootShell,

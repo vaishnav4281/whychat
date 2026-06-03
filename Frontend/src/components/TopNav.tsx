@@ -17,7 +17,7 @@ export function TopNav({ profile, onLogout, online = 0 }: Props) {
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#EC4899] flex items-center justify-center shadow-sm">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
-          <span className="font-bold tracking-tight hidden sm:inline bg-gradient-to-r from-[#7C3AED] to-[#EC4899] bg-clip-text text-transparent">MetWitsh00</span>
+          <span className="font-bold tracking-tight hidden sm:inline bg-gradient-to-r from-[#7C3AED] to-[#EC4899] bg-clip-text text-transparent">MetWithStrangers</span>
         </div>
 
         <div className="ml-auto flex items-center gap-3">
