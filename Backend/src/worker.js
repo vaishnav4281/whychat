@@ -90,7 +90,7 @@ function relayMessage(sender, msg) {
 
   if (msg.type === 'signal_relay') {
     // Forward raw signal (SDP / ICE) — frontend WebRTC parses it
-    send(target, 'signal_relay', { peerId: sender.id, signal: data.signal });
+    send(target, 'signal_relay', { peerId: sender.id, signal: msg.data });
     return;
   }
 

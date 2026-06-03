@@ -3,6 +3,7 @@ import { ArrowLeft, Send, ImagePlus, Mic, Square, Play } from "lucide-react";
 import { flagFor, type PeerUser } from "@/lib/peerStore";
 import { StorageService, type ChatMessage } from "@/services/storage";
 import { webrtc } from "@/services/webrtc";
+import { discovery } from "@/services/discovery";
 
 interface Props {
   peer: PeerUser;
@@ -21,7 +22,9 @@ export function PersistentChat({ peer, onBack }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    webrtc.establishDataConnection(peer.id);
+    const initiate = discovery.chatInitiatorFor === peer.id;
+    webrtc.establishDataConnection(peer.id, initiate);
+    discovery.clearInitiator();
     setMessages(StorageService.getChatHistory(peer.id));
     feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: "smooth" });
   }, [peer.id]);

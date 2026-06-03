@@ -19,16 +19,11 @@ export class WebRTCService {
   }
 
   private setupListeners() {
-    signaling.events.addEventListener('match_found', ((e: CustomEvent<{ peerId: string; initiateCall: boolean }>) => {
-      this.handleMatchFound(e.detail.peerId, e.detail.initiateCall);
-    }) as EventListener);
-
     signaling.events.addEventListener('signal_relay', ((e: CustomEvent<{ peerId: string; signal: any }>) => {
       this.handleSignal(e.detail.signal);
     }) as EventListener);
   }
 
-  /** Pre-set a local stream acquired via user gesture */
   public setLocalStream(stream: MediaStream) {
     this.localStream = stream;
     window.dispatchEvent(new CustomEvent('whychat_local_stream', { detail: { stream } }));
@@ -36,16 +31,6 @@ export class WebRTCService {
 
   public hasLocalStream(): boolean {
     return this.localStream !== null;
-  }
-
-  public joinVideoQueue() {
-    signaling.send({ type: 'join_video_queue' });
-  }
-
-  public skipVideo() {
-    this.closeConnections();
-    signaling.send({ type: 'leave_video' });
-    this.joinVideoQueue();
   }
 
   public closeConnections() {
@@ -62,75 +47,24 @@ export class WebRTCService {
       this.peerConnection = null;
     }
     this.partnerId = null;
+    this.incomingMedia = { chunks: [], mimeType: '', name: '', receiving: false };
     window.dispatchEvent(new Event('whychat_video_cleanup'));
   }
 
-  public async establishDataConnection(peerId: string) {
-    this.partnerId = peerId;
-
-    const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-    this.peerConnection = new RTCPeerConnection(configuration);
-
-    this.peerConnection.onicecandidate = (event) => {
-      if (event.candidate) {
-        signaling.send({
-          type: 'signal_relay',
-          target: this.partnerId,
-          data: { type: 'ice-candidate', candidate: event.candidate }
-        });
-      }
-    };
-
-    this.dataChannel = this.peerConnection.createDataChannel('whychat_data');
-    this.setupDataChannel();
-
-    const offer = await this.peerConnection.createOffer();
-    await this.peerConnection.setLocalDescription(offer);
-
-    signaling.send({
-      type: 'signal_relay',
-      target: this.partnerId,
-      data: { type: 'offer', offer }
-    });
-  }
-
-  private async handleMatchFound(peerId: string, initiateCall: boolean) {
-    this.partnerId = peerId;
-
-    // If no stream yet, try to acquire it now
-    if (!this.localStream) {
-      try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          alert("Camera access is not supported. Ensure you are on localhost or HTTPS.");
-          return;
-        }
-        this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        window.dispatchEvent(new CustomEvent('whychat_local_stream', { detail: { stream: this.localStream } }));
-      } catch (e: any) {
-        console.error("Camera permission denied or failed", e);
-        if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
-          alert("Camera permission was denied. Please allow camera access and try again.");
-        } else if (e.name === 'NotFoundError') {
-          alert("No camera or microphone found.");
-        } else if (e.name === 'NotReadableError') {
-          alert("Your camera is already in use by another application.");
-        } else {
-          alert("Failed to access camera: " + (e.message || e.toString()));
-        }
-        return;
-      }
+  /**
+   * Establish a WebRTC data channel for chat.
+   * @param peerId  The remote peer's ID
+   * @param initiate  true = create & send offer; false = wait for incoming offer
+   */
+  public async establishDataConnection(peerId: string, initiate: boolean = true) {
+    if (this.peerConnection) {
+      this.closeConnections();
     }
 
+    this.partnerId = peerId;
+
     const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
     this.peerConnection = new RTCPeerConnection(configuration);
-
-    this.localStream.getTracks().forEach(track => {
-      if (this.localStream) this.peerConnection!.addTrack(track, this.localStream);
-    });
-
-    this.peerConnection.ontrack = (event) => {
-      window.dispatchEvent(new CustomEvent('whychat_remote_stream', { detail: { stream: event.streams[0] } }));
-    };
 
     this.peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
@@ -152,7 +86,7 @@ export class WebRTCService {
       }
     };
 
-    if (initiateCall) {
+    if (initiate) {
       this.dataChannel = this.peerConnection.createDataChannel('whychat_data');
       this.setupDataChannel();
 

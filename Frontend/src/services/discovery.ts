@@ -2,12 +2,23 @@ import { signaling } from './signaling';
 import { StorageService, Profile, Friend } from './storage';
 
 export class DiscoveryService {
+  private _chatInitiatorFor: string | null = null;
+
   constructor() {
     this.setupListeners();
   }
 
+  /** Returns the peer ID for which we initiated a chat, or null. */
+  public get chatInitiatorFor(): string | null {
+    return this._chatInitiatorFor;
+  }
+
+  /** Clears the stored initiator flag. */
+  public clearInitiator(): void {
+    this._chatInitiatorFor = null;
+  }
+
   private setupListeners() {
-    // using unknown to bypass TypeScript strictness on CustomEvent casting, though it's bound properly
     signaling.events.addEventListener('CHAT_INIT', ((e: CustomEvent<{ peerId: string; peerDetails: any }>) => this.handleChatInit(e)) as EventListener);
     signaling.events.addEventListener('FRIEND_REQ', ((e: CustomEvent<{ id: string; name: string, avatar: string, country: string }>) => this.handleFriendReq(e)) as EventListener);
     signaling.events.addEventListener('FRIEND_ACCEPT', ((e: CustomEvent<{ peerId: string; peerDetails: any }>) => this.handleFriendAccept(e)) as EventListener);
@@ -24,13 +35,9 @@ export class DiscoveryService {
 
   public initiateChat(targetId: string, targetDetails: Profile) {
     const localProfile = StorageService.getProfile();
-    
-    // Initialize an empty thread locally if it doesn't exist
-    const chats = StorageService.getChatHistory(targetId);
-    if (chats.length === 0) {
-      // By adding a "system" style message we can initialize the array, 
-      // or just rely on the UI routing to create an empty array naturally.
-    }
+
+    // Mark ourselves as the chat initiator
+    this._chatInitiatorFor = targetId;
 
     signaling.send({
       type: 'CHAT_INIT',
@@ -52,7 +59,7 @@ export class DiscoveryService {
   public sendFriendRequest(targetId: string) {
     const localProfile = StorageService.getProfile();
     StorageService.addOutgoingRequest(targetId);
-    
+
     signaling.send({
       type: 'FRIEND_REQ',
       target: targetId,
@@ -68,7 +75,7 @@ export class DiscoveryService {
   public acceptFriendRequest(targetId: string, targetDetails: Partial<Profile>) {
     const localProfile = StorageService.getProfile();
     StorageService.removeRequest(targetId);
-    
+
     const friend: Friend = {
       id: targetId,
       name: targetDetails.name || 'Unknown',
@@ -92,7 +99,8 @@ export class DiscoveryService {
 
   private handleChatInit(e: CustomEvent<{ peerId: string; peerDetails: any }>) {
     const { peerId, peerDetails } = e.detail;
-    console.log(`Chat initiated by ${peerDetails?.name}`);
+    // We are the receiver, so initiatorFor is null
+    this._chatInitiatorFor = null;
     window.dispatchEvent(
       new CustomEvent('whychat_route_chat', {
         detail: { peerId, peerDetails },
