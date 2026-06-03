@@ -132,17 +132,21 @@ export class SignalingService {
     this.demoMode = true;
     console.log('WhyChat: running in demo mode (no signaling server)');
 
+    // Yield so callers can register their event listeners first
+    await new Promise(r => setTimeout(r, 0));
+
     this.events.dispatchEvent(new Event('connected'));
     this.joinPool();
 
-    // Simulate explore_data every 8 seconds with random peers
-    this.mockInterval = setInterval(() => {
+    // Dispatch explore + metrics every 7 seconds
+    const dispatchAll = () => {
       this.dispatchMockExplore();
-    }, 8000);
+      this.dispatchMockMetrics();
+    };
+    this.mockInterval = setInterval(dispatchAll, 7000);
 
     // Immediate mock data
-    this.dispatchMockExplore();
-    this.dispatchMockMetrics();
+    dispatchAll();
   }
 
   private dispatchMockMetrics() {

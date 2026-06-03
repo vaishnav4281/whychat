@@ -186,7 +186,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
       StorageService.addChatMessage(peer.id, m);
     };
     const onPartnerLeft = () => {
-      matchNext();
+      setCamError("Connection lost — tap Skip to find someone new");
     };
 
     signaling.events.addEventListener('FRIEND_ACCEPT', onFriendAccept as EventListener);
@@ -350,6 +350,13 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
               <div className="text-white/80 text-sm mt-1 uppercase tracking-widest drop-shadow-md font-semibold">
                 {flagFor(String(peer?.country ?? ""))} {String(peer?.country ?? "")}
               </div>
+            </div>
+          )}
+
+          {/* Connection lost / error banner */}
+          {!isSearching && camError && (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-destructive/90 text-white text-xs font-semibold px-4 py-2 rounded-full whitespace-nowrap backdrop-blur-sm shadow-lg">
+              {camError}
             </div>
           )}
 
