@@ -236,7 +236,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
               <SkipForward className="w-4 h-4" /> Match Again
             </button>
             <button onClick={onGoExplore}
-              className="bg-white/70 border border-white/60 font-semibold py-3 rounded-2xl hover:scale-[1.01] transition inline-flex items-center justify-center gap-2">
+              className="bg-white/70 border border-white/60 text-neutral-900 font-semibold py-3 rounded-2xl hover:scale-[1.01] hover:bg-white transition inline-flex items-center justify-center gap-2">
               <Compass className="w-4 h-4" /> Explore
             </button>
             <button onClick={onBack}
@@ -369,7 +369,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
               onClick={skipCall}
               disabled={isSearching}
               className={`px-4 md:px-5 py-3 rounded-full text-xs md:text-sm font-semibold flex items-center gap-2 transition ${
-                isSearching ? "bg-white/40 text-white/60 cursor-not-allowed" : "bg-white/80 hover:scale-105"
+                isSearching ? "bg-white/40 text-white/60 cursor-not-allowed" : "bg-white/80 text-neutral-900 hover:bg-white hover:scale-105"
               }`}
             >
               <SkipForward className="w-4 h-4" /> Skip

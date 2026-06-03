@@ -138,6 +138,7 @@ function handleMessage(client, raw) {
 
   if (message.type === "pong") {
     client.lastPong = Date.now();
+    client.waitingForPong = false;
     return;
   }
 
@@ -206,6 +207,7 @@ function handleWebSocket(request) {
     socket: serverSocket,
     lastPong: Date.now(),
     heartbeat: null,
+    waitingForPong: false,
   };
 
   clientsBySocket.set(serverSocket, client);
@@ -218,10 +220,11 @@ function handleWebSocket(request) {
   serverSocket.addEventListener("error", () => cleanup(client));
 
   client.heartbeat = setInterval(() => {
-    if (Date.now() - client.lastPong > HEARTBEAT_MS * 2) {
+    if (client.waitingForPong) {
       cleanup(client);
       return;
     }
+    client.waitingForPong = true;
     send(client, "ping", { ts: Date.now() });
   }, HEARTBEAT_MS);
 

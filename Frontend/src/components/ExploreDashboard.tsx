@@ -260,7 +260,7 @@ export function ExploreDashboard({ profile, session, onSessionChange, onLogout, 
                         </button>
                         <button
                           onClick={() => handleOpenChat(p)}
-                          className="bg-white/70 border border-white/60 text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 hover:scale-105 transition">
+                          className="bg-white/70 border border-white/60 text-neutral-900 text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 hover:scale-105 hover:bg-white transition">
                           <MessageCircle className="w-3.5 h-3.5" /> Message
                         </button>
                       </>

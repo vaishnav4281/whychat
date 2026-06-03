@@ -173,12 +173,12 @@ export function PersistentChat({ peer, onBack }: Props) {
                 }
               }} />
             <button onClick={() => fileRef.current?.click()}
-              className="w-9 h-9 rounded-full bg-white/70 flex items-center justify-center hover:scale-105 transition">
+              className="w-9 h-9 rounded-full bg-white/70 text-neutral-900 flex items-center justify-center hover:scale-105 hover:bg-white transition">
               <ImagePlus className="w-4 h-4" />
             </button>
             <button onClick={recording ? stopRec : startRec}
               className={`w-9 h-9 rounded-full flex items-center justify-center hover:scale-105 transition ${
-                recording ? "bg-red-500 text-white animate-pulse-dot" : "bg-white/70"
+                recording ? "bg-red-500 text-white animate-pulse-dot" : "bg-white/70 text-neutral-900 hover:bg-white"
               }`}>
               {recording ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
             </button>
