@@ -4,6 +4,6 @@ Backend/node_modules/
 .vercel/
 Frontend/.vercel/
 Backend/.wrangler/
-.env
-.env.local
-.env.*.local
+/.env
+/.env.local
+/.env.*.local
