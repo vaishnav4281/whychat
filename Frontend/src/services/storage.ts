@@ -34,6 +34,14 @@ export interface ChatMessage {
   ts: number;
 }
 
+export interface ChatRecord {
+  name: string;
+  lastMessage: string;
+  startedBy?: string;
+  iHaveReplied: boolean;
+  messages: ChatMessage[];
+}
+
 const cache = new Map<string, { value: unknown; ts: number }>();
 const CACHE_TTL = 2000;
 
@@ -147,19 +155,63 @@ export class StorageService {
   }
 
   // Chats
-  static getChats(): Record<string, ChatMessage[]> {
-    return getItem<Record<string, ChatMessage[]>>('whychat_chats', {});
+  static getChats(): Record<string, ChatRecord> {
+    const raw = getItem<Record<string, any>>('whychat_chats', {});
+    // Migrate old format (Record<string, ChatMessage[]>) to new ChatRecord format
+    const firstVal = Object.values(raw)[0];
+    if (firstVal && Array.isArray(firstVal)) {
+      const migrated: Record<string, ChatRecord> = {};
+      for (const [peerId, msgs] of Object.entries(raw)) {
+        migrated[peerId] = {
+          name: peerId,
+          lastMessage: msgs.length > 0 ? msgs[msgs.length - 1].content : '',
+          iHaveReplied: true,
+          messages: msgs as ChatMessage[],
+        };
+      }
+      setItem('whychat_chats', migrated);
+      return migrated;
+    }
+    return raw as Record<string, ChatRecord>;
   }
 
   static getChatHistory(peerId: string): ChatMessage[] {
-    const chats = getItem<Record<string, ChatMessage[]>>('whychat_chats', {});
-    return chats[peerId] || [];
+    const chats = StorageService.getChats();
+    return chats[peerId]?.messages || [];
+  }
+
+  static saveChatPlaceholder(peerId: string, name: string, startedBy?: string): void {
+    const chats = StorageService.getChats();
+    if (!chats[peerId]) {
+      chats[peerId] = {
+        name,
+        lastMessage: '',
+        startedBy,
+        iHaveReplied: false,
+        messages: [],
+      };
+      setItem('whychat_chats', chats);
+    }
   }
 
   static addChatMessage(peerId: string, message: ChatMessage): void {
-    const chats = getItem<Record<string, ChatMessage[]>>('whychat_chats', {});
-    if (!chats[peerId]) chats[peerId] = [];
-    chats[peerId].push(message);
+    const chats = StorageService.getChats();
+    if (!chats[peerId]) {
+      chats[peerId] = {
+        name: peerId,
+        lastMessage: '',
+        iHaveReplied: false,
+        messages: [],
+      };
+    }
+    chats[peerId].messages.push(message);
+    chats[peerId].lastMessage = message.content;
+
+    const profile = StorageService.getProfile();
+    if (message.senderId === profile?.id) {
+      chats[peerId].iHaveReplied = true;
+    }
+
     setItem('whychat_chats', chats);
   }
 }

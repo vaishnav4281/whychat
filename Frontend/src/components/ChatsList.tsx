@@ -1,82 +1,100 @@
 import { useEffect, useState } from "react";
-import { MessageCircle, Sparkles } from "lucide-react";
-import { flagFor, type PeerUser } from "@/lib/peerStore";
-import { StorageService, type Friend } from "@/services/storage";
+import { StorageService, ChatRecord } from "../services/storage";
 
 interface Props {
-  onOpenChat: (peer: PeerUser) => void;
+  onOpenChat: (peer: any) => void;
 }
 
 export function ChatsList({ onOpenChat }: Props) {
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [previews, setPreviews] = useState<Record<string, string>>({});
+  const [chats, setChats] = useState<Record<string, ChatRecord>>({});
+  const [myId, setMyId] = useState('');
 
   useEffect(() => {
-    const update = () => {
-      const friendList = Object.values(StorageService.getFriends());
-      setFriends(friendList);
-      const chats = StorageService.getChats();
-      const p: Record<string, string> = {};
-      for (const f of friendList) {
-        const history = chats[f.id];
-        if (history?.length) {
-          const last = history[history.length - 1];
-          p[f.id] = last.type === "text" ? last.content : last.type === "image" ? "📷 Photo" : "🎤 Voice note";
-        } else {
-          p[f.id] = "Start the conversation";
-        }
-      }
-      setPreviews(p);
+    const load = () => {
+      const profile = StorageService.getProfile();
+      setChats(StorageService.getChats());
+      setMyId(profile?.id || '');
     };
-
-    update();
-    window.addEventListener('whychat_storage_update', update);
-    return () => window.removeEventListener('whychat_storage_update', update);
+    load();
+    const interval = window.setInterval(load, 1000);
+    return () => clearInterval(interval);
   }, []);
 
-  return (
-    <div className="p-5 md:p-6 h-full">
-      <div className="max-w-2xl mx-auto">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-[#7C3AED] to-[#EC4899] flex items-center justify-center">
-            <Sparkles className="w-3.5 h-3.5 text-white" />
-          </div>
-          <span className="badge-gradient">Inbox</span>
-        </div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-5 md:mb-6">
-          Your chats
-        </h1>
+  const entries = Object.entries(chats);
 
-        {friends.length === 0 ? (
-          <div className="card-premium card-accent-blue p-8 md:p-10 text-center">
-            <div className="text-sm text-muted-foreground">
-              No conversations yet. Send a message to a friend.
-            </div>
+  const requests: [string, ChatRecord][] = [];
+  const general: [string, ChatRecord][] = [];
+
+  for (const [peerId, record] of entries) {
+    if (record.startedBy && record.startedBy !== myId && !record.iHaveReplied) {
+      requests.push([peerId, record]);
+    } else {
+      general.push([peerId, record]);
+    }
+  }
+
+  const requestCount = requests.length;
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="px-4 py-4 border-b border-border">
+        <h1 className="text-xl font-bold">Chats</h1>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {entries.length === 0 ? (
+          <div className="text-center py-16 px-4">
+            <div className="text-3xl mb-3">💬</div>
+            <p className="text-muted-foreground">No chats yet</p>
+            <p className="text-sm text-muted-foreground mt-1">Visit Explore to start a conversation</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {friends.map((f) => {
-              const preview = previews[f.id] ?? "Start the conversation";
-
-              return (
-                <button key={f.id} onClick={() => onOpenChat({ ...f, nickname: f.name, gender: 'M', languages: [], online: true } as PeerUser)}
-                  className="w-full card-premium-hover card-accent-top p-3.5 md:p-4 flex items-center gap-3 text-left">
-                  <div className="relative shrink-0">
-                    <img src={f.avatar} alt="" className="w-11 h-11 md:w-12 md:h-12 rounded-2xl bg-secondary ring-2 ring-[#D8D0F5]" />
-                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 ring-2 ring-card" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm md:text-base">{f.name}</span>
-                      <span className="tag-premium !text-[10px]">{flagFor(f.country)} {f.country}</span>
+          <>
+            {requests.length > 0 && (
+              <div className="mb-2">
+                <div className="flex items-center gap-2 px-4 py-2">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Requests</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-[#EC4899] to-[#F472B6] text-white">{requestCount}</span>
+                </div>
+                {requests.map(([peerId, record]) => (
+                  <div
+                    key={peerId}
+                    onClick={() => onOpenChat({ id: peerId, nickname: record.name, name: record.name, gender: 'M', languages: [], country: 'Unknown', avatar: '', online: false, isBot: false })}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 cursor-pointer transition"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#EC4899] flex items-center justify-center text-white font-bold text-sm shrink-0">
+                      {record.name?.charAt(0)?.toUpperCase() || '?'}
                     </div>
-                    <div className="text-sm text-muted-foreground truncate">{preview}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm truncate">{record.name || 'Stranger'}</div>
+                      <div className="text-xs text-muted-foreground truncate">{record.lastMessage || 'Wants to chat'}</div>
+                    </div>
                   </div>
-                  <MessageCircle className="w-4 h-4 text-muted-foreground shrink-0" />
-                </button>
-              );
-            })}
-          </div>
+                ))}
+              </div>
+            )}
+            {general.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 px-4 py-2">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">General</span>
+                </div>
+                {general.map(([peerId, record]) => (
+                  <div
+                    key={peerId}
+                    onClick={() => onOpenChat({ id: peerId, nickname: record.name, name: record.name, gender: 'M', languages: [], country: 'Unknown', avatar: '', online: false, isBot: false })}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 cursor-pointer transition"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#EC4899] flex items-center justify-center text-white font-bold text-sm shrink-0">
+                      {record.name?.charAt(0)?.toUpperCase() || '?'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm truncate">{record.name || 'Stranger'}</div>
+                      <div className="text-xs text-muted-foreground truncate">{record.lastMessage || ''}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

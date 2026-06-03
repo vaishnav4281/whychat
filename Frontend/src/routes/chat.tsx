@@ -4,7 +4,6 @@ import { MeshBackdrop } from "@/components/MeshBackdrop";
 import { ExploreDashboard } from "@/components/ExploreDashboard";
 import { ChatsList } from "@/components/ChatsList";
 import { PersistentChat } from "@/components/PersistentChat";
-import { FriendsTab } from "@/components/FriendsTab";
 import { TopNav } from "@/components/TopNav";
 import { BottomNav, type Tab } from "@/components/BottomNav";
 import { StorageService } from "@/services/storage";
@@ -45,9 +44,7 @@ function ChatRoute() {
     signaling.events.addEventListener('global_metrics', handleMetrics as EventListener);
     signaling.connect();
     const onRouteChat = (e: CustomEvent<{ peerId: string; peerDetails?: Partial<PeerUser> }>) => {
-      const friends = JSON.parse(localStorage.getItem('whychat_friends') || '{}');
-      const friend = friends[e.detail.peerId];
-      const peerDetails = e.detail.peerDetails ?? friend;
+      const peerDetails = e.detail.peerDetails;
       if (!peerDetails) return;
       setOpenChat({
         ...peerDetails, id: e.detail.peerId,
@@ -67,9 +64,17 @@ function ChatRoute() {
     };
   }, [profile]);
 
-  const [requests, setRequests] = useState(0);
+  const [chatRequests, setChatRequests] = useState(0);
   useEffect(() => {
-    const update = () => setRequests(StorageService.getRequests().incoming.length);
+    const update = () => {
+      const chats = StorageService.getChats();
+      const profile = StorageService.getProfile();
+      const myId = profile?.id || '';
+      const count = Object.entries(chats).filter(
+        ([_, r]) => r.startedBy && r.startedBy !== myId && !r.iHaveReplied
+      ).length;
+      setChatRequests(count);
+    };
     update();
     window.addEventListener('whychat_storage_update', update);
     return () => window.removeEventListener('whychat_storage_update', update);
@@ -102,11 +107,8 @@ function ChatRoute() {
             </>
           )}
         </div>
-        <div className={tab !== "friends" ? "hidden" : "flex-1 overflow-y-auto pb-20"}>
-          <FriendsTab onOpenChat={goChat} />
-        </div>
       </main>
-      <BottomNav tab={tab} onTabChange={setTab} badge={requests} />
+      <BottomNav tab={tab} onTabChange={setTab} badge={chatRequests} />
     </>
   );
 }
