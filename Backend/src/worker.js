@@ -5,15 +5,24 @@ const clientsBySocket = new Map();
 const clientsById = new Map();
 const videoQueue = []; // Strictly handled as a FIFO Queue
 
-const HEARTBEAT_MS = 25000;
+const HEARTBEAT_MS = 30000;
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Upgrade, Connection",
+};
 
 function json(type, data) {
   return JSON.stringify({ type, data });
 }
 
 function send(client, type, data) {
+  if (client.cleanedUp) return;
   try {
-    client.socket.send(json(type, data));
+    if (client.socket.readyState === 1) { // OPEN
+      client.socket.send(json(type, data));
+    }
   } catch {
     cleanup(client);
   }
@@ -69,6 +78,19 @@ function relay(sender, message) {
     return;
   }
 
+  // For FRIEND_REQ, pass the sender's profile data so the receiver can display it
+  if (message.type === "FRIEND_REQ") {
+    send(target, "FRIEND_REQ", {
+      ...message.data,
+      id: sender.id,
+      name: sender.profile?.name || sender.profile?.nickname || "Stranger",
+      avatar: sender.profile?.avatar || "",
+      country: sender.profile?.country || "",
+      nickname: sender.profile?.nickname || sender.profile?.name || "Stranger",
+    });
+    return;
+  }
+
   send(target, message.type, message.data);
 }
 
@@ -84,11 +106,10 @@ function joinVideoQueue(client) {
 
   // O(1) Queue Logic: Pull the first candidate who isn't self and is still connected
   while (videoQueue.length > 0) {
-    const partnerId = videoQueue.shift(); // Remove from front of queue
+    const partnerId = videoQueue.shift();
     const partner = clientsById.get(partnerId);
 
-    // If partner exists and is still online, perform match
-    if (partner && partner.id !== client.id) {
+    if (partner && partner.id !== client.id && !partner.cleanedUp) {
       send(client, "match_found", {
         peerId: partner.id,
         peer: publicProfile(partner),
@@ -145,7 +166,15 @@ function handleMessage(client, raw) {
   if (message.type === "join_pool") {
     const previousId = client.id;
     const profile = message.data ?? {};
-    client.id = profile.id || previousId;
+    const newId = profile.id || previousId;
+
+    // If another socket already has this ID (same user reconnecting), close the old one
+    const existing = clientsById.get(newId);
+    if (existing && existing !== client) {
+      cleanup(existing);
+    }
+
+    client.id = newId;
     client.profile = profile;
 
     if (previousId !== client.id) {
@@ -158,19 +187,21 @@ function handleMessage(client, raw) {
   }
 
   if (message.type === "fetch_explore") {
-    // High-Performance Optimization: Single-pass iteration to prevent memory thrashing
     const peers = [];
     const filterCriteria = message.data ?? {};
-    
+
     for (const peer of clientsById.values()) {
       if (peer.id === client.id) continue;
-      
+      if (peer.cleanedUp) continue;
+      // Only show peers who have registered a profile (joined pool with data)
+      if (!peer.profile || !peer.profile.name) continue;
+
       const profile = publicProfile(peer);
       if (matchesFilters(profile, filterCriteria)) {
         peers.push(profile);
       }
     }
-    
+
     send(client, "explore_data", peers);
     return;
   }
@@ -208,6 +239,7 @@ function handleWebSocket(request) {
     lastPong: Date.now(),
     heartbeat: null,
     waitingForPong: false,
+    cleanedUp: false,
   };
 
   clientsBySocket.set(serverSocket, client);
@@ -228,7 +260,7 @@ function handleWebSocket(request) {
     send(client, "ping", { ts: Date.now() });
   }, HEARTBEAT_MS);
 
-  // Send baseline metric frame immediately to newly initialized socket
+  // Send baseline metric frame immediately
   send(client, "global_metrics", { online: clientsById.size });
   broadcastMetrics();
 
@@ -242,20 +274,28 @@ export default {
   fetch(request) {
     const url = new URL(request.url);
 
+    // Handle CORS preflight
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: CORS_HEADERS });
+    }
+
     if (request.headers.get("upgrade") === "websocket") {
       return handleWebSocket(request);
     }
 
     if (url.pathname === "/health") {
-      return Response.json({
-        ok: true,
-        online: clientsById.size,
-        queued: videoQueue.length,
-      });
+      return Response.json(
+        {
+          ok: true,
+          online: clientsById.size,
+          queued: videoQueue.length,
+        },
+        { headers: CORS_HEADERS }
+      );
     }
 
     return new Response("WhyChat switchboard is running.", {
-      headers: { "content-type": "text/plain; charset=utf-8" },
+      headers: { "content-type": "text/plain; charset=utf-8", ...CORS_HEADERS },
     });
   },
 };

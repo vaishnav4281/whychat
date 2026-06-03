@@ -29,7 +29,17 @@ export class SignalingService {
   private connectPromise: Promise<void> | null = null;
   private demoMode = import.meta.env.DEV && !this.url;
 
-  private constructor() {}
+  private constructor() {
+    if (typeof window !== 'undefined' && this.url) {
+      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        try {
+          const parsed = new URL(this.url);
+          parsed.hostname = window.location.hostname;
+          this.url = parsed.toString();
+        } catch { /* malformed url, ignore */ }
+      }
+    }
+  }
 
   public static getInstance(): SignalingService {
     if (!SignalingService.instance) {

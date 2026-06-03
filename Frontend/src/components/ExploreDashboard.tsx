@@ -70,12 +70,16 @@ export function ExploreDashboard({ profile, session, onSessionChange, onLogout, 
     signaling.events.addEventListener('connected', handleConnected);
     signaling.events.addEventListener('pool_update', handlePoolUpdate as EventListener);
 
+    // Periodic refresh as reliability fallback (in case pool_update is missed)
+    const refreshInterval = setInterval(fetchExploreWithFilters, 5000);
+
     return () => {
       window.removeEventListener('whychat_storage_update', handleStorageUpdate);
       signaling.events.removeEventListener('explore_data', handleExploreData as EventListener);
       signaling.events.removeEventListener('global_metrics', handleMetrics as EventListener);
       signaling.events.removeEventListener('connected', handleConnected);
       signaling.events.removeEventListener('pool_update', handlePoolUpdate as EventListener);
+      clearInterval(refreshInterval);
     };
   }, []);
 

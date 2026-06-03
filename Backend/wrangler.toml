@@ -2,5 +2,9 @@ name = "whychat-switchboard"
 main = "src/worker.js"
 compatibility_date = "2026-06-02"
 
+[dev]
+host = "0.0.0.0"
+port = 8787
+
 [observability]
 enabled = true
