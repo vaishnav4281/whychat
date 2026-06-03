@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -40,9 +40,21 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
+  const [cleared, setCleared] = useState(false);
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
+
+  const clearData = () => {
+    const keys = Object.keys(localStorage);
+    for (const key of keys) {
+      if (key.startsWith('whychat_') || key === 'peer_profile') {
+        localStorage.removeItem(key);
+      }
+    }
+    setCleared(true);
+    setTimeout(() => window.location.reload(), 300);
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -51,7 +63,9 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           This page didn't load
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          {cleared
+            ? 'Data cleared. Reloading...'
+            : 'Something went wrong. Try refreshing, clearing data, or go home.'}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -62,6 +76,12 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Try again
+          </button>
+          <button
+            onClick={clearData}
+            className="inline-flex items-center justify-center rounded-md border border-destructive bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20"
+          >
+            Clear local data
           </button>
           <a
             href="/"
