@@ -6,5 +6,13 @@ compatibility_date = "2026-06-02"
 host = "0.0.0.0"
 port = 8787
 
+[[durable_objects.bindings]]
+name = "WEBSOCKET_DO"
+class_name = "SwitchboardDO"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["SwitchboardDO"]
+
 [observability]
 enabled = true

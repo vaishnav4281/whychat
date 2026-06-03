@@ -1,21 +1,8 @@
 // ─── WhyChat Switchboard ──────────────────────────────────────────────────
-// Cloudflare Workers WebSocket signaling server.
-// No KV, D1, or external storage — all state is in-memory per-isolate.
-// Free-tier safe: lightweight message handling, idle-drain, rate limiting.
-// ────────────────────────────────────────────────────────────────────────────
+// Cloudflare Workers WebSocket signaling server using Durable Objects for
+// shared state across all WebSocket connections.
+// ───────────────────────────────────────────────────────────────────────────
 
-// ─── In-memory state ───────────────────────────────────────────────────────
-const clientsBySocket = new Map();   // WebSocket → Client
-const clientsById    = new Map();    // id → Client
-const videoQueue     = new Set();    // Set of client ids waiting for a match
-const rateLimits     = new Map();    // id → { count, windowStart }
-
-const CONNECTION_TTL        = 180_000; // 3 min idle → automatic cleanup
-const RATE_WINDOW           = 1_000;   // 1 second window
-const RATE_MAX              = 30;      // max messages per window
-const HEARTBEAT_INTERVAL    = 15_000;  // push ping every 15s
-
-// CORS for /health and any HTTP fallback
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -26,51 +13,13 @@ const RELAY_TYPES = new Set([
   'CHAT_INIT', 'FRIEND_REQ', 'FRIEND_ACCEPT', 'signal_relay'
 ]);
 
-// Only these fields are forwarded in relay payloads
 const SAFE_FIELDS = new Set([
   'id','name','nickname','avatar','country','languages',
   'gender','peerId','peerDetails','signal'
 ]);
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
-
 function json(type, data) {
   return JSON.stringify({ type, data });
-}
-
-function send(client, type, data) {
-  if (client.closed) return;
-  try {
-    client.ws.send(json(type, data));
-  } catch {
-    close(client);
-  }
-}
-
-// Throttled broadcast of online count to every connected client
-let broadcastQueued = false;
-function queueBroadcast() {
-  if (broadcastQueued) return;
-  broadcastQueued = true;
-  queueMicrotask(() => {
-    broadcastQueued = false;
-    const payload = { online: clientsById.size };
-    for (const c of clientsBySocket.values()) {
-      if (!c.closed) send(c, 'global_metrics', payload);
-    }
-  });
-}
-
-function safeProfile(c) {
-  return c.profile ? { id: c.id, ...c.profile } : { id: c.id };
-}
-
-function matchFilters(profile, filters = {}) {
-  if (!profile) return false;
-  if (filters.gender   && filters.gender   !== 'all' && profile.gender   !== filters.gender)   return false;
-  if (filters.country  && filters.country  !== 'all' && profile.country  !== filters.country)   return false;
-  if (filters.language && filters.language !== 'all' && !(profile.languages || []).includes(filters.language)) return false;
-  return true;
 }
 
 function safeRelay(data) {
@@ -82,240 +31,285 @@ function safeRelay(data) {
   return out;
 }
 
-function relayMessage(sender, msg) {
-  const target = clientsById.get(msg.target);
-  if (!target || target.closed) return;
+// ─── Durable Object ────────────────────────────────────────────────────────
 
-  const data = safeRelay(msg.data);
+export class SwitchboardDO {
+  constructor(state, env) {
+    this.state = state;
+    this.env = env;
+    this.clientsBySocket = new Map();
+    this.clientsById    = new Map();
+    this.videoQueue     = new Set();
+    this.rateLimits     = new Map();
+    this._broadcastQueued = false;
 
-  if (msg.type === 'signal_relay') {
-    // Forward raw signal (SDP / ICE) — frontend WebRTC parses it
-    send(target, 'signal_relay', { peerId: sender.id, signal: msg.data });
-    return;
+    this.CONNECTION_TTL     = 180_000;
+    this.RATE_WINDOW        = 1_000;
+    this.RATE_MAX           = 30;
+    this.HEARTBEAT_INTERVAL = 15_000;
   }
 
-  send(target, msg.type, data);
-}
+  // ── Internal helpers ───────────────────────────────────────────────────
 
-// ─── Video queue matching ──────────────────────────────────────────────────
-
-function tryMatch(client) {
-  // Remove self in case they were already queued
-  videoQueue.delete(client.id);
-
-  // Walk queue (insertion order) — first suitable partner wins
-  for (const pid of videoQueue) {
-    const partner = clientsById.get(pid);
-    if (!partner || partner.closed || partner.id === client.id) {
-      videoQueue.delete(pid);
-      continue;
+  send(client, type, data) {
+    if (client.closed) return;
+    try {
+      client.ws.send(json(type, data));
+    } catch {
+      this.close(client);
     }
+  }
 
-    // Found a match
-    videoQueue.delete(pid);
-
-    send(client, 'match_found', {
-      peerId: partner.id,
-      peer: safeProfile(partner),
-      initiateCall: true,
+  queueBroadcast() {
+    if (this._broadcastQueued) return;
+    this._broadcastQueued = true;
+    queueMicrotask(() => {
+      this._broadcastQueued = false;
+      const payload = { online: this.clientsById.size };
+      for (const c of this.clientsBySocket.values()) {
+        if (!c.closed) this.send(c, 'global_metrics', payload);
+      }
     });
-
-    send(partner, 'match_found', {
-      peerId: client.id,
-      peer: safeProfile(client),
-      initiateCall: false,
-    });
-
-    return; // matched
   }
 
-  // No match yet — enqueue
-  videoQueue.add(client.id);
-}
-
-// ─── Rate limiter ──────────────────────────────────────────────────────────
-
-function rateCheck(client) {
-  const now = Date.now();
-  let entry = rateLimits.get(client.id);
-  if (!entry || now - entry.windowStart > RATE_WINDOW) {
-    entry = { count: 0, windowStart: now };
-    rateLimits.set(client.id, entry);
-  }
-  entry.count++;
-  return entry.count <= RATE_MAX;
-}
-
-// ─── Connection lifecycle ──────────────────────────────────────────────────
-
-function close(client) {
-  if (client.closed) return;
-  client.closed = true;
-
-  clientsBySocket.delete(client.ws);
-  clientsById.delete(client.id);
-  videoQueue.delete(client.id);
-  rateLimits.delete(client.id);
-
-  if (client.idleTimer) clearTimeout(client.idleTimer);
-  if (client.heartTimer) clearInterval(client.heartTimer);
-
-  try { client.ws.close(1000, 'bye'); } catch {}
-
-  queueBroadcast();
-}
-
-// Touch the idle timer — any message / open resets it
-function touchIdle(client) {
-  if (client.idleTimer) clearTimeout(client.idleTimer);
-  client.idleTimer = setTimeout(() => close(client), CONNECTION_TTL);
-}
-
-// ─── Message router ────────────────────────────────────────────────────────
-
-function onMessage(client, raw) {
-  // Reset idle timer on every message
-  touchIdle(client);
-
-  let msg;
-  try { msg = JSON.parse(raw); } catch {
-    send(client, 'error', { message: 'invalid json' });
-    return;
+  safeProfile(c) {
+    return c.profile ? { id: c.id, ...c.profile } : { id: c.id };
   }
 
-  // Heartbeat
-  if (msg.type === 'ping') { send(client, 'pong', { ts: Date.now() }); return; }
-  if (msg.type === 'pong') return;
-
-  // Rate limit
-  if (!rateCheck(client)) {
-    send(client, 'error', { message: 'rate limited' });
-    return;
+  matchFilters(profile, filters = {}) {
+    if (!profile) return false;
+    if (filters.gender   && filters.gender   !== 'all' && profile.gender   !== filters.gender)   return false;
+    if (filters.country  && filters.country  !== 'all' && profile.country  !== filters.country)   return false;
+    if (filters.language && filters.language !== 'all' && !(profile.languages || []).includes(filters.language)) return false;
+    return true;
   }
 
-  switch (msg.type) {
+  rateCheck(client) {
+    const now = Date.now();
+    let entry = this.rateLimits.get(client.id);
+    if (!entry || now - entry.windowStart > this.RATE_WINDOW) {
+      entry = { count: 0, windowStart: now };
+      this.rateLimits.set(client.id, entry);
+    }
+    entry.count++;
+    return entry.count <= this.RATE_MAX;
+  }
 
-    // ── Register / update profile ────────────────────────────────────────
-    case 'join_pool': {
-      const profile = msg.data || {};
-      const newId   = profile.id || client.id;
+  close(client) {
+    if (client.closed) return;
+    client.closed = true;
 
-      // If another connection holds this ID, evict it
-      const existing = clientsById.get(newId);
-      if (existing && existing !== client) {
-        existing.closed = true;
-        clientsBySocket.delete(existing.ws);
-        clientsById.delete(newId);
-        videoQueue.delete(newId);
-        rateLimits.delete(newId);
-        if (existing.idleTimer) clearTimeout(existing.idleTimer);
-        if (existing.heartTimer) clearInterval(existing.heartTimer);
-        try { existing.ws.close(1000, 'replaced'); } catch {}
-      }
+    this.clientsBySocket.delete(client.ws);
+    this.clientsById.delete(client.id);
+    this.videoQueue.delete(client.id);
+    this.rateLimits.delete(client.id);
 
-      // Remove old id mapping if the client changed its id
-      if (client.id !== newId) clientsById.delete(client.id);
+    if (client.idleTimer) clearTimeout(client.idleTimer);
+    if (client.heartTimer) clearInterval(client.heartTimer);
 
-      client.id      = newId;
-      client.profile = profile;
-      clientsById.set(client.id, client);
+    try { client.ws.close(1000, 'bye'); } catch {}
 
-      queueBroadcast();
-      break;
+    this.queueBroadcast();
+  }
+
+  touchIdle(client) {
+    if (client.idleTimer) clearTimeout(client.idleTimer);
+    client.idleTimer = setTimeout(() => this.close(client), this.CONNECTION_TTL);
+  }
+
+  // ── Relay ───────────────────────────────────────────────────────────────
+
+  relayMessage(sender, msg) {
+    const target = this.clientsById.get(msg.target);
+    if (!target || target.closed) return;
+
+    const data = safeRelay(msg.data);
+
+    if (msg.type === 'signal_relay') {
+      this.send(target, 'signal_relay', { peerId: sender.id, signal: msg.data });
+      return;
     }
 
-    // ── Explore query ────────────────────────────────────────────────────
-    case 'fetch_explore': {
-      const filters = msg.data || {};
-      const peers = [];
-      for (const c of clientsById.values()) {
-        if (c.id === client.id || c.closed) continue;
-        if (!c.profile || (!c.profile.name && !c.profile.nickname)) continue;
-        const p = safeProfile(c);
-        if (matchFilters(p, filters)) peers.push(p);
+    this.send(target, msg.type, data);
+  }
+
+  // ── Video matching ──────────────────────────────────────────────────────
+
+  tryMatch(client) {
+    this.videoQueue.delete(client.id);
+
+    for (const pid of this.videoQueue) {
+      const partner = this.clientsById.get(pid);
+      if (!partner || partner.closed || partner.id === client.id) {
+        this.videoQueue.delete(pid);
+        continue;
       }
-      send(client, 'explore_data', peers);
-      break;
+
+      this.videoQueue.delete(pid);
+
+      this.send(client, 'match_found', {
+        peerId: partner.id,
+        peer: this.safeProfile(partner),
+        initiateCall: true,
+      });
+
+      this.send(partner, 'match_found', {
+        peerId: client.id,
+        peer: this.safeProfile(client),
+        initiateCall: false,
+      });
+
+      return;
     }
 
-    // ── Video queue ───────────────────────────────────────────────────────
-    case 'join_video_queue':
-      tryMatch(client);
-      break;
-
-    case 'leave_video':
-      videoQueue.delete(client.id);
-      break;
-
-    // ── Relay (friend requests, chat init, WebRTC signals) ────────────────
-    default:
-      if (RELAY_TYPES.has(msg.type)) {
-        relayMessage(client, msg);
-      }
-      break;
+    this.videoQueue.add(client.id);
   }
-}
 
-// ─── WebSocket handler ─────────────────────────────────────────────────────
+  // ── Message router ──────────────────────────────────────────────────────
 
-function handleWebSocket(request) {
-  const pair = new WebSocketPair();
-  const [clientWs, serverWs] = Object.values(pair);
-  serverWs.accept();
+  onMessage(client, raw) {
+    this.touchIdle(client);
 
-  const client = {
-    id:       crypto.randomUUID(),
-    profile:  null,
-    ws:       serverWs,
-    closed:   false,
-    idleTimer: null,
-    heartTimer: null,
-  };
+    let msg;
+    try { msg = JSON.parse(raw); } catch {
+      this.send(client, 'error', { message: 'invalid json' });
+      return;
+    }
 
-  clientsBySocket.set(serverWs, client);
-  clientsById.set(client.id, client);
-  touchIdle(client);
+    if (msg.type === 'ping') { this.send(client, 'pong', { ts: Date.now() }); return; }
+    if (msg.type === 'pong') return;
 
-  // Server-pushed heartbeat to detect dead peers faster
-  client.heartTimer = setInterval(() => {
-    if (client.closed) { clearInterval(client.heartTimer); return; }
-    try { client.ws.send(json('ping', { ts: Date.now() })); } catch { close(client); }
-  }, HEARTBEAT_INTERVAL);
+    if (!this.rateCheck(client)) {
+      this.send(client, 'error', { message: 'rate limited' });
+      return;
+    }
 
-  serverWs.addEventListener('message', (e) => onMessage(client, e.data));
-  serverWs.addEventListener('close',    () => close(client));
-  serverWs.addEventListener('error',    () => close(client));
+    switch (msg.type) {
 
-  queueBroadcast();
-  return new Response(null, { status: 101, webSocket: clientWs });
-}
+      case 'join_pool': {
+        const profile = msg.data || {};
+        const newId   = profile.id || client.id;
 
-// ─── Entry point ───────────────────────────────────────────────────────────
+        const existing = this.clientsById.get(newId);
+        if (existing && existing !== client) {
+          existing.closed = true;
+          this.clientsBySocket.delete(existing.ws);
+          this.clientsById.delete(newId);
+          this.videoQueue.delete(newId);
+          this.rateLimits.delete(newId);
+          if (existing.idleTimer) clearTimeout(existing.idleTimer);
+          if (existing.heartTimer) clearInterval(existing.heartTimer);
+          try { existing.ws.close(1000, 'replaced'); } catch {}
+        }
 
-export default {
-  fetch(request) {
-    // CORS preflight
+        if (client.id !== newId) this.clientsById.delete(client.id);
+
+        client.id      = newId;
+        client.profile = profile;
+        this.clientsById.set(client.id, client);
+
+        this.queueBroadcast();
+        break;
+      }
+
+      case 'fetch_explore': {
+        const filters = msg.data || {};
+        const peers = [];
+        for (const c of this.clientsById.values()) {
+          if (c.id === client.id || c.closed) continue;
+          if (!c.profile || (!c.profile.name && !c.profile.nickname)) continue;
+          const p = this.safeProfile(c);
+          if (this.matchFilters(p, filters)) peers.push(p);
+        }
+        this.send(client, 'explore_data', peers);
+        break;
+      }
+
+      case 'join_video_queue':
+        this.tryMatch(client);
+        break;
+
+      case 'leave_video':
+        this.videoQueue.delete(client.id);
+        break;
+
+      default:
+        if (RELAY_TYPES.has(msg.type)) {
+          this.relayMessage(client, msg);
+        }
+        break;
+    }
+  }
+
+  // ── WebSocket handler ───────────────────────────────────────────────────
+
+  handleWebSocket(request) {
+    const pair = new WebSocketPair();
+    const [clientWs, serverWs] = Object.values(pair);
+    serverWs.accept();
+
+    const client = {
+      id:        crypto.randomUUID(),
+      profile:   null,
+      ws:        serverWs,
+      closed:    false,
+      idleTimer:  null,
+      heartTimer: null,
+    };
+
+    this.clientsBySocket.set(serverWs, client);
+    this.clientsById.set(client.id, client);
+    this.touchIdle(client);
+
+    client.heartTimer = setInterval(() => {
+      if (client.closed) { clearInterval(client.heartTimer); return; }
+      try { client.ws.send(json('ping', { ts: Date.now() })); } catch { this.close(client); }
+    }, this.HEARTBEAT_INTERVAL);
+
+    serverWs.addEventListener('message', (e) => this.onMessage(client, e.data));
+    serverWs.addEventListener('close',    () => this.close(client));
+    serverWs.addEventListener('error',    () => this.close(client));
+
+    this.queueBroadcast();
+    return new Response(null, { status: 101, webSocket: clientWs });
+  }
+
+  // ─── HTTP handler ──────────────────────────────────────────────────────
+
+  async fetch(request) {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: CORS });
     }
 
-    // WebSocket upgrade
     const upgrade = request.headers.get('upgrade');
     if (upgrade && upgrade.toLowerCase() === 'websocket') {
-      return handleWebSocket(request);
+      return this.handleWebSocket(request);
     }
 
-    // Health-check endpoint
     const url = new URL(request.url);
     if (url.pathname === '/health') {
       return Response.json(
-        { ok: true, online: clientsById.size, queued: videoQueue.size },
+        { ok: true, online: this.clientsById.size, queued: this.videoQueue.size },
         { headers: CORS }
       );
     }
 
-    return new Response('WhyChat switchboard is running.', {
+    return new Response('WhyChat switchboard DO is running.', {
       headers: { 'content-type': 'text/plain; charset=utf-8', ...CORS },
     });
+  }
+}
+
+// ─── Entry point (proxies to DO) ──────────────────────────────────────────
+
+export default {
+  async fetch(request, env) {
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: CORS });
+    }
+
+    const doId = env.WEBSOCKET_DO.idFromName("global");
+    const stub = env.WEBSOCKET_DO.get(doId);
+    return stub.fetch(request);
   },
 };
