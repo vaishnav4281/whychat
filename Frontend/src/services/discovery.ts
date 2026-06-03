@@ -47,6 +47,12 @@ export class DiscoveryService {
       }
     });
 
+    StorageService.saveChatPlaceholder(
+      targetId,
+      targetDetails?.name || targetDetails?.nickname || 'Stranger',
+      localProfile?.id
+    );
+
     window.dispatchEvent(
       new CustomEvent('whychat_route_chat', {
         detail: { peerId: targetId, peerDetails: targetDetails },
@@ -84,7 +90,7 @@ export class DiscoveryService {
         webrtc.establishDataConnection(peerId, false);
         const chats = StorageService.getChats();
         if (!chats[peerId]) {
-          StorageService.saveChatPlaceholder(peerId, peerDetails?.name || peerDetails?.nickname || 'Stranger');
+          StorageService.saveChatPlaceholder(peerId, peerDetails?.name || peerDetails?.nickname || 'Stranger', peerId);
         }
       }
     }
