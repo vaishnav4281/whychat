@@ -112,20 +112,21 @@ export class SignalingService {
     return this.connectPromise;
   }
 
+  private static ALLOWED_EVENTS = new Set([
+    'global_metrics', 'explore_data', 'match_found', 'signal_relay',
+    'pool_update', 'FRIEND_REQ', 'FRIEND_ACCEPT', 'CHAT_INIT', 'error',
+  ]);
+
   private handleMessage(data: string) {
     try {
       const message = JSON.parse(data);
-      if (message.type === 'pong') {
-        // server acknowledged our ping — connection alive
+      if (message.type === 'pong') return;
+      if (message.type === 'ping') { this.send({ type: 'pong' }); return; }
+      if (!SignalingService.ALLOWED_EVENTS.has(message.type)) {
+        console.warn('Ignoring unknown event type:', message.type);
         return;
-      } else if (message.type === 'ping') {
-        // server-initiated ping (legacy) — respond
-        this.send({ type: 'pong' });
-      } else {
-        // Dispatch specific event based on message type
-        // Pass the entire message data to the custom event
-        this.events.dispatchEvent(new CustomEvent(message.type, { detail: message.data || message }));
       }
+      this.events.dispatchEvent(new CustomEvent(message.type, { detail: message.data || message }));
     } catch (e) {
       console.error("Failed to parse websocket message", e);
     }

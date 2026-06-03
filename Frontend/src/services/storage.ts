@@ -30,103 +30,131 @@ export interface Requests {
 export interface ChatMessage {
   senderId: string;
   type: 'text' | 'image' | 'voice';
-  content: string; // text-data or local-blob-url
+  content: string;
   ts: number;
 }
 
+const cache = new Map<string, { value: unknown; ts: number }>();
+const CACHE_TTL = 2000;
+
+function getCached<T>(key: string): T | undefined {
+  const entry = cache.get(key);
+  if (entry && Date.now() - entry.ts < CACHE_TTL) {
+    return entry.value as T;
+  }
+  cache.delete(key);
+  return undefined;
+}
+
+function setCached(key: string, value: unknown): void {
+  cache.set(key, { value, ts: Date.now() });
+  if (cache.size > 50) {
+    const oldest = cache.keys().next().value;
+    if (oldest) cache.delete(oldest);
+  }
+}
+
+function getItem<T>(key: string, defaultValue: T): T {
+  const cached = getCached<T>(key);
+  if (cached !== undefined) return cached;
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      const value = JSON.parse(raw) as T;
+      setCached(key, value);
+      return value;
+    }
+  } catch { /* ignore */ }
+  return defaultValue;
+}
+
+function setItem<T>(key: string, value: T): void {
+  setCached(key, value);
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    window.dispatchEvent(new CustomEvent('whychat_storage_update', { detail: { key, value } }));
+  } catch { /* ignore */ }
+}
+
 export class StorageService {
-  private static get<T>(key: string, defaultValue: T): T {
-    try {
-      const item = localStorage.getItem(key);
-      if (item) {
-        return JSON.parse(item) as T;
-      }
-    } catch (e) {
-      console.error(`Error reading ${key} from localStorage`, e);
-    }
-    return defaultValue;
-  }
-
-  private static set<T>(key: string, value: T): void {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-      // Dispatch custom event for cross-tab or global state reactivity
-      window.dispatchEvent(new CustomEvent('whychat_storage_update', { detail: { key, value } }));
-    } catch (e) {
-      console.error(`Error writing ${key} to localStorage`, e);
-    }
-  }
-
   // Profile
   static getProfile(): Profile | null {
-    return this.get<Profile | null>('whychat_profile', null);
+    return getItem<Profile | null>('whychat_profile', null)
+      || getItem<Profile | null>('peer_profile', null);
   }
 
   static saveProfile(profile: Profile): void {
-    this.set('whychat_profile', profile);
+    setItem('whychat_profile', profile);
+    try { localStorage.removeItem('peer_profile'); } catch { /* ignore */ }
+  }
+
+  static clearProfile(): void {
+    try {
+      localStorage.removeItem('whychat_profile');
+      localStorage.removeItem('peer_profile');
+      window.dispatchEvent(new CustomEvent('whychat_storage_update', { detail: { key: 'whychat_profile', value: null } }));
+    } catch { /* ignore */ }
   }
 
   // Friends
   static getFriends(): Record<string, Friend> {
-    return this.get<Record<string, Friend>>('whychat_friends', {});
+    return getItem<Record<string, Friend>>('whychat_friends', {});
   }
 
   static addFriend(peerId: string, friend: Friend): void {
-    const friends = this.getFriends();
+    const friends = getItem<Record<string, Friend>>('whychat_friends', {});
     friends[peerId] = friend;
-    this.set('whychat_friends', friends);
+    setItem('whychat_friends', friends);
   }
 
   static removeFriend(peerId: string): void {
-    const friends = this.getFriends();
+    const friends = getItem<Record<string, Friend>>('whychat_friends', {});
     delete friends[peerId];
-    this.set('whychat_friends', friends);
+    setItem('whychat_friends', friends);
   }
 
   // Requests
   static getRequests(): Requests {
-    return this.get<Requests>('whychat_requests', { incoming: [], outgoing: [] });
+    return getItem<Requests>('whychat_requests', { incoming: [], outgoing: [] });
   }
 
   static addIncomingRequest(req: FriendRequest): void {
-    const requests = this.getRequests();
+    const requests = getItem<Requests>('whychat_requests', { incoming: [], outgoing: [] });
     if (!requests.incoming.find(r => r.id === req.id)) {
       requests.incoming.push(req);
-      this.set('whychat_requests', requests);
+      setItem('whychat_requests', requests);
     }
   }
 
   static addOutgoingRequest(targetId: string): void {
-    const requests = this.getRequests();
+    const requests = getItem<Requests>('whychat_requests', { incoming: [], outgoing: [] });
     if (!requests.outgoing.includes(targetId)) {
       requests.outgoing.push(targetId);
-      this.set('whychat_requests', requests);
+      setItem('whychat_requests', requests);
     }
   }
 
   static removeRequest(id: string): void {
-    const requests = this.getRequests();
+    const requests = getItem<Requests>('whychat_requests', { incoming: [], outgoing: [] });
     requests.incoming = requests.incoming.filter(r => r.id !== id);
     requests.outgoing = requests.outgoing.filter(r => r !== id);
-    this.set('whychat_requests', requests);
+    setItem('whychat_requests', requests);
   }
 
   // Chats
   static getChats(): Record<string, ChatMessage[]> {
-    return this.get<Record<string, ChatMessage[]>>('whychat_chats', {});
+    return getItem<Record<string, ChatMessage[]>>('whychat_chats', {});
   }
 
   static getChatHistory(peerId: string): ChatMessage[] {
-    const chats = this.getChats();
+    const chats = getItem<Record<string, ChatMessage[]>>('whychat_chats', {});
     return chats[peerId] || [];
   }
 
   static addChatMessage(peerId: string, message: ChatMessage): void {
-    const chats = this.getChats();
-    if (!chats[peerId]) {
-      chats[peerId] = [];
-    }
+    const chats = getItem<Record<string, ChatMessage[]>>('whychat_chats', {});
+    if (!chats[peerId]) chats[peerId] = [];
     chats[peerId].push(message);
-    this.set('whychat_chats', chats);
+    setItem('whychat_chats', chats);
   }
 }

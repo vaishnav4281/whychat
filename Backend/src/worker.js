@@ -1,17 +1,21 @@
-// worker.js - WhyChat Signaling Server
-// Compatible with Cloudflare Workers - NO setInterval/setTimeout for background work
-// Heartbeating is client-driven: clients send {type:"pong"} responses to server pings
-// Server pings are sent inline when messages arrive (lazy heartbeat pattern)
-
 const clientsBySocket = new Map();
 const clientsById = new Map();
-const videoQueue = [];
+const videoQueue = new Set();
+const rateLimits = new Map();
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Upgrade, Connection",
 };
+
+const RELAY_ALLOWED_TYPES = new Set(['CHAT_INIT', 'FRIEND_REQ', 'FRIEND_ACCEPT', 'signal_relay']);
+const RELAY_SAFE_FIELDS = new Set(['id', 'name', 'nickname', 'avatar', 'country', 'languages', 'gender', 'peerId', 'peerDetails', 'signal']);
+
+const RATE_LIMIT_WINDOW = 1000;
+const RATE_LIMIT_MAX = 30;
+
+let broadcastDirty = false;
 
 function json(type, data) {
   return JSON.stringify({ type, data });
@@ -20,29 +24,26 @@ function json(type, data) {
 function send(client, type, data) {
   if (client.cleanedUp) return;
   try {
-    if (client.socket.readyState === WebSocket.OPEN || client.socket.readyState === 1) {
-      client.socket.send(json(type, data));
-    }
+    client.socket.send(json(type, data));
   } catch {
     cleanup(client);
   }
 }
 
-function broadcastMetrics() {
-  const data = { online: clientsById.size };
-  for (const client of clientsBySocket.values()) {
-    if (!client.cleanedUp) send(client, "global_metrics", data);
-  }
-}
-
-function broadcastPoolUpdate() {
-  for (const client of clientsBySocket.values()) {
-    if (!client.cleanedUp) send(client, "pool_update", {});
-  }
+function scheduleBroadcast() {
+  if (broadcastDirty) return;
+  broadcastDirty = true;
+  queueMicrotask(() => {
+    broadcastDirty = false;
+    const data = { online: clientsById.size };
+    for (const client of clientsBySocket.values()) {
+      if (!client.cleanedUp) send(client, "state_update", data);
+    }
+  });
 }
 
 function publicProfile(client) {
-  return { ...(client.profile ?? {}), id: client.id };
+  return client.profile ? { id: client.id, ...client.profile } : { id: client.id };
 }
 
 function matchesFilters(profile, filters = {}) {
@@ -53,40 +54,37 @@ function matchesFilters(profile, filters = {}) {
   return true;
 }
 
+function sanitizeRelayPayload(data) {
+  if (!data || typeof data !== 'object') return data;
+  const safe = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (RELAY_SAFE_FIELDS.has(key)) safe[key] = value;
+  }
+  return safe;
+}
+
 function relay(sender, message) {
   const target = clientsById.get(message.target);
   if (!target || target.cleanedUp) return;
+  const safeData = sanitizeRelayPayload(message.data);
 
   if (message.type === "signal_relay") {
-    send(target, "signal_relay", { peerId: sender.id, signal: message.data });
+    send(target, "signal_relay", { peerId: sender.id, signal: safeData.signal });
     return;
   }
 
-  if (message.type === "FRIEND_REQ") {
-    send(target, "FRIEND_REQ", {
-      id: sender.id,
-      name: sender.profile?.name || sender.profile?.nickname || "Stranger",
-      avatar: sender.profile?.avatar || "",
-      country: sender.profile?.country || "",
-      nickname: sender.profile?.nickname || sender.profile?.name || "Stranger",
-      ...message.data,
-    });
-    return;
-  }
-
-  send(target, message.type, message.data);
+  send(target, message.type, safeData);
 }
 
 function removeFromVideoQueue(clientId) {
-  const index = videoQueue.indexOf(clientId);
-  if (index !== -1) videoQueue.splice(index, 1);
+  videoQueue.delete(clientId);
 }
 
 function joinVideoQueue(client) {
-  removeFromVideoQueue(client.id);
+  videoQueue.delete(client.id);
 
-  while (videoQueue.length > 0) {
-    const partnerId = videoQueue.shift();
+  for (const partnerId of videoQueue) {
+    videoQueue.delete(partnerId);
     const partner = clientsById.get(partnerId);
     if (partner && partner.id !== client.id && !partner.cleanedUp) {
       send(client, "match_found", {
@@ -103,7 +101,18 @@ function joinVideoQueue(client) {
     }
   }
 
-  videoQueue.push(client.id);
+  videoQueue.add(client.id);
+}
+
+function checkRateLimit(client) {
+  const now = Date.now();
+  let entry = rateLimits.get(client.id);
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW) {
+    entry = { count: 0, windowStart: now };
+    rateLimits.set(client.id, entry);
+  }
+  entry.count++;
+  return entry.count <= RATE_LIMIT_MAX;
 }
 
 function cleanup(client) {
@@ -111,10 +120,10 @@ function cleanup(client) {
   client.cleanedUp = true;
   clientsBySocket.delete(client.socket);
   clientsById.delete(client.id);
-  removeFromVideoQueue(client.id);
+  videoQueue.delete(client.id);
+  rateLimits.delete(client.id);
   try { client.socket.close(); } catch { /* already closed */ }
-  broadcastMetrics();
-  broadcastPoolUpdate();
+  scheduleBroadcast();
 }
 
 function handleMessage(client, raw) {
@@ -126,41 +135,32 @@ function handleMessage(client, raw) {
     return;
   }
 
-  // Respond to client pings — keeps connection alive without setInterval
-  if (message.type === "ping") {
-    send(client, "pong", { ts: Date.now() });
-    return;
-  }
+  if (message.type === "ping") { send(client, "pong", { ts: Date.now() }); return; }
+  if (message.type === "pong") return;
 
-  // Client acknowledging our pong
-  if (message.type === "pong") {
+  if (!checkRateLimit(client)) {
+    send(client, "error", { message: "rate limited" });
     return;
   }
 
   if (message.type === "join_pool") {
     const profile = message.data ?? {};
     const newId = profile.id || client.id;
-
-    // Evict stale socket with same ID (reconnect scenario)
     const existing = clientsById.get(newId);
     if (existing && existing !== client) {
       existing.cleanedUp = true;
       clientsBySocket.delete(existing.socket);
       clientsById.delete(newId);
+      videoQueue.delete(newId);
+      rateLimits.delete(newId);
       try { existing.socket.close(); } catch { /* already closed */ }
     }
-
     const oldId = client.id;
     client.id = newId;
     client.profile = profile;
-
     if (oldId !== newId) clientsById.delete(oldId);
     clientsById.set(client.id, client);
-
-    // Send immediate metrics to this client
-    send(client, "global_metrics", { online: clientsById.size });
-    broadcastMetrics();
-    broadcastPoolUpdate();
+    scheduleBroadcast();
     return;
   }
 
@@ -169,7 +169,7 @@ function handleMessage(client, raw) {
     const filters = message.data ?? {};
     for (const peer of clientsById.values()) {
       if (peer.id === client.id || peer.cleanedUp) continue;
-      if (!peer.profile?.name && !peer.profile?.nickname) continue; // skip unregistered
+      if (!peer.profile?.name && !peer.profile?.nickname) continue;
       const profile = publicProfile(peer);
       if (matchesFilters(profile, filters)) peers.push(profile);
     }
@@ -177,17 +177,10 @@ function handleMessage(client, raw) {
     return;
   }
 
-  if (message.type === "join_video_queue") {
-    joinVideoQueue(client);
-    return;
-  }
+  if (message.type === "join_video_queue") { joinVideoQueue(client); return; }
+  if (message.type === "leave_video") { videoQueue.delete(client.id); return; }
 
-  if (message.type === "leave_video") {
-    removeFromVideoQueue(client.id);
-    return;
-  }
-
-  if (["CHAT_INIT", "FRIEND_REQ", "FRIEND_ACCEPT", "signal_relay"].includes(message.type)) {
+  if (RELAY_ALLOWED_TYPES.has(message.type)) {
     relay(client, message);
   }
 }
@@ -195,7 +188,6 @@ function handleMessage(client, raw) {
 function handleWebSocket(request) {
   const pair = new WebSocketPair();
   const [clientSocket, serverSocket] = Object.values(pair);
-
   serverSocket.accept();
 
   const client = {
@@ -208,18 +200,11 @@ function handleWebSocket(request) {
   clientsBySocket.set(serverSocket, client);
   clientsById.set(client.id, client);
 
-  serverSocket.addEventListener("message", (event) => {
-    handleMessage(client, event.data);
-  });
-
+  serverSocket.addEventListener("message", (event) => handleMessage(client, event.data));
   serverSocket.addEventListener("close", () => cleanup(client));
   serverSocket.addEventListener("error", () => cleanup(client));
 
-  // Immediately send current metrics to the newly connected client
-  send(client, "global_metrics", { online: clientsById.size });
-  broadcastMetrics();
-
-  // Return the 101 upgrade response immediately — NO setInterval
+  scheduleBroadcast();
   return new Response(null, { status: 101, webSocket: clientSocket });
 }
 
@@ -228,19 +213,16 @@ export default {
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
-
     if (request.headers.get("upgrade")?.toLowerCase() === "websocket") {
       return handleWebSocket(request);
     }
-
     const url = new URL(request.url);
     if (url.pathname === "/health") {
       return Response.json(
-        { ok: true, online: clientsById.size, queued: videoQueue.length },
+        { ok: true, online: clientsById.size, queued: videoQueue.size },
         { headers: CORS_HEADERS }
       );
     }
-
     return new Response("WhyChat switchboard is running.", {
       headers: { "content-type": "text/plain; charset=utf-8", ...CORS_HEADERS },
     });
