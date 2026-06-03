@@ -50,7 +50,7 @@ export const Route = createFileRoute("/")({
 
 function LandingHero({ onGetStarted }: { onGetStarted: () => void }) {
   return (
-    <section className="relative min-h-[90vh] flex flex-col items-center justify-center px-6 text-center">
+    <section className="relative min-h-screen flex flex-col items-center justify-center px-6 text-center">
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-[#7C3AED]/10 blur-3xl" />
         <div className="absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-[#EC4899]/10 blur-3xl" />
@@ -71,27 +71,28 @@ function LandingHero({ onGetStarted }: { onGetStarted: () => void }) {
           <span className="text-foreground">Worldwide</span>
         </h1>
 
-        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
+        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6 leading-relaxed">
           WhyChat is a free, instant messaging platform to meet new people from over 150 countries.
           Practice languages, make friends, and explore cultures — all from your browser.
         </p>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-          <button onClick={onGetStarted}
-            className="btn-gradient px-8 py-4 text-base font-semibold text-center flex items-center gap-2 shadow-lg shadow-[#7C3AED]/25">
-            Get Started Free <ArrowRight className="w-4 h-4" />
-          </button>
-          <a href="#features"
-            className="btn-ghost px-8 py-4 text-base font-semibold flex items-center gap-2">
-            Learn More <ChevronDown className="w-4 h-4" />
-          </a>
+        <div className="flex items-center justify-center gap-3 mb-10 flex-wrap">
+          <span className="pill-premium inline-flex items-center gap-1.5 text-xs"><Shield className="w-3 h-3 text-green-500" /> No login required</span>
+          <span className="pill-premium inline-flex items-center gap-1.5 text-xs"><Shield className="w-3 h-3 text-green-500" /> 100% private — nothing stored</span>
+          <span className="pill-premium inline-flex items-center gap-1.5 text-xs"><Shield className="w-3 h-3 text-green-500" /> No email needed</span>
         </div>
+
+        <button onClick={onGetStarted}
+          className="btn-gradient px-10 py-5 text-lg font-bold text-center flex items-center gap-3 shadow-xl shadow-[#7C3AED]/30 mx-auto mb-4 animate-in">
+          Create Your Profile — It's Free <ArrowRight className="w-5 h-5" />
+        </button>
+        <p className="text-xs text-muted-foreground mb-16">No signup, no download, no data stored. Just pick a name and start.</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-2xl mx-auto">
           {[
             { value: "150+", label: "Countries" },
             { value: "Real-time", label: "Messaging" },
-            { value: "Free", label: "No signup needed" },
+            { value: "Zero", label: "Data stored" },
           ].map((s) => (
             <div key={s.label} className="card-premium p-4">
               <div className="text-2xl font-black text-[#7C3AED]">{s.value}</div>
@@ -365,14 +366,27 @@ function MainApp() {
   return (
     <>
       <TopNav profile={profile} onLogout={() => setProfile(null)} online={online} />
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <div className={tab !== "explore" ? "hidden" : "flex-1 overflow-y-auto pb-20 md:pb-8"}>
+      <main className="flex-1 flex flex-col overflow-hidden pb-14">
+        <div className={tab !== "explore" ? "hidden" : "flex-1 overflow-y-auto"}>
           <ExploreDashboard onOpenChat={goChat} />
         </div>
-        <div className={tab !== "chats" ? "hidden" : "flex-1 overflow-y-auto pb-20 md:pb-8"}>
-          {openChat ? <PersistentChat peer={openChat} onBack={() => setOpenChat(null)} /> : <ChatsList onOpenChat={goChat} />}
+        <div className={tab !== "chats" ? "hidden" : "flex-1 flex overflow-hidden"}>
+          {!openChat ? (
+            <div className="flex-1 overflow-y-auto">
+              <ChatsList onOpenChat={goChat} />
+            </div>
+          ) : (
+            <>
+              <div className="w-80 hidden md:flex flex-col overflow-y-auto border-r border-border">
+                <ChatsList onOpenChat={goChat} />
+              </div>
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <PersistentChat peer={openChat} onBack={() => setOpenChat(null)} />
+              </div>
+            </>
+          )}
         </div>
-        <div className={tab !== "friends" ? "hidden" : "flex-1 overflow-y-auto pb-20 md:pb-8"}>
+        <div className={tab !== "friends" ? "hidden" : "flex-1 overflow-y-auto"}>
           <FriendsTab onOpenChat={goChat} />
         </div>
       </main>
