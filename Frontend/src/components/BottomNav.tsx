@@ -10,7 +10,7 @@ interface Props {
 
 export function BottomNav({ tab, onTabChange, badge = 0 }: Props) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30">
+    <nav className="w-full">
       <div className="nav-premium px-4 py-2 flex items-center justify-around md:justify-center md:gap-8">
         {([
           { k: "explore" as const, label: "Explore", icon: Compass },
