@@ -18,6 +18,8 @@ export function PersistentChat({ peer, onBack }: Props) {
   const [draft, setDraft] = useState("");
   const [recording, setRecording] = useState(false);
   const [dcOnline, setDcOnline] = useState(false);
+  const [typing, setTyping] = useState(false);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mediaRecRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const feedRef = useRef<HTMLDivElement>(null);
@@ -77,16 +79,24 @@ export function PersistentChat({ peer, onBack }: Props) {
       }
     };
 
+    const handleTyping = (e: CustomEvent<{ peerId: string, typing: boolean }>) => {
+      if (e.detail.peerId === peer.id) {
+        setTyping(e.detail.typing);
+      }
+    };
+
     window.addEventListener('whychat_dc_status', handleDcStatus as EventListener);
     window.addEventListener('whychat_storage_update', handleStorageUpdate as EventListener);
     window.addEventListener('whychat_text_received', handleTextRecv as EventListener);
     window.addEventListener('whychat_media_received', handleMediaRecv as EventListener);
+    window.addEventListener('whychat_typing', handleTyping as EventListener);
 
     return () => {
       window.removeEventListener('whychat_dc_status', handleDcStatus as EventListener);
       window.removeEventListener('whychat_storage_update', handleStorageUpdate as EventListener);
       window.removeEventListener('whychat_text_received', handleTextRecv as EventListener);
       window.removeEventListener('whychat_media_received', handleMediaRecv as EventListener);
+      window.removeEventListener('whychat_typing', handleTyping as EventListener);
       if (!peer.isBot) webrtc.closeConnections();
     };
   }, [peer.id]);
@@ -106,6 +116,8 @@ export function PersistentChat({ peer, onBack }: Props) {
 
   const send = () => {
     if (!draft.trim()) return;
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    webrtc.sendTyping(false);
     if (peer.isBot) {
       const profile = StorageService.getProfile();
       signaling.send({ type: 'BOT_MSG', target: peer.id, data: { text: draft.trim(), from: profile?.id } });
@@ -159,8 +171,12 @@ export function PersistentChat({ peer, onBack }: Props) {
         </button>
         <img src={peer.avatar} alt="" className="w-9 h-9 md:w-11 md:h-11 rounded-full bg-secondary ring-2 ring-[#D8D0F5]" />
         <div className="flex-1 min-w-0">
-          <div className="font-bold tracking-tight truncate text-sm md:text-base">{peer.nickname}</div>
-          <div className="tag-premium !text-[9px] md:!text-[10px] flex items-center gap-1.5">
+          <div className="font-bold tracking-tight truncate text-sm md:text-base">
+            {peer.nickname}
+            {typing && !dcOnline && <span className="inline-flex ml-1.5"><span className="animate-bounce [animation-delay:0ms]">.</span><span className="animate-bounce [animation-delay:150ms]">.</span><span className="animate-bounce [animation-delay:300ms]">.</span></span>}
+          </div>
+          {typing && dcOnline && <div className="text-[10px] text-muted-foreground italic flex items-center gap-1"><span className="inline-flex"><span className="animate-bounce [animation-delay:0ms]">.</span><span className="animate-bounce [animation-delay:150ms]">.</span><span className="animate-bounce [animation-delay:300ms]">.</span></span> typing</div>}
+          {!typing && <div className="tag-premium !text-[9px] md:!text-[10px] flex items-center gap-1.5">
             <span className={`w-1.5 h-1.5 rounded-full inline-block ${dcOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
             {peer.isBot && <Bot className="w-2.5 h-2.5 text-purple-500" />}
             {flagFor(peer.country)} {peer.country}
@@ -207,7 +223,14 @@ export function PersistentChat({ peer, onBack }: Props) {
           </button>
           <input
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              if (!peer.isBot && dcOnline) {
+                webrtc.sendTyping(true);
+                if (typingTimer.current) clearTimeout(typingTimer.current);
+                typingTimer.current = setTimeout(() => webrtc.sendTyping(false), 1500);
+              }
+            }}
             onKeyDown={(e) => e.key === "Enter" && send()}
             placeholder="Type a message…"
             className="flex-1 bg-transparent text-sm outline-none px-1 placeholder:text-muted-foreground py-1"

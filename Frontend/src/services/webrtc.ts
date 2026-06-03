@@ -194,6 +194,8 @@ export class WebRTCService {
         this.finalizeIncomingMedia();
       } else if (msg.type === 'TEXT') {
         window.dispatchEvent(new CustomEvent('whychat_text_received', { detail: { text: msg.content, sender: this.partnerId } }));
+      } else if (msg.type === 'TYPING') {
+        window.dispatchEvent(new CustomEvent('whychat_typing', { detail: { peerId: this.partnerId, typing: msg.active } }));
       }
     } catch (e) {
       console.error("Failed to parse data channel message", e);
@@ -240,6 +242,12 @@ export class WebRTCService {
     }
 
     this.dataChannel.send(JSON.stringify({ type: 'MEDIA_END' }));
+  }
+
+  public sendTyping(active: boolean): void {
+    if (this.dataChannel && this.dataChannel.readyState === 'open') {
+      this.dataChannel.send(JSON.stringify({ type: 'TYPING', active }));
+    }
   }
 
   public sendText(text: string): boolean {
