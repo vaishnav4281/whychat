@@ -3,4 +3,4 @@ Allow: /
 Allow: /chat
 Disallow:
 
-Sitemap: https://metwithstrangers.pages.dev/sitemap.xml
+Sitemap: https://metwitsh00.pages.dev/sitemap.xml

@@ -1,4 +1,4 @@
-name = "metwithstrangers-switchboard"
+name = "metwitsh00-switchboard"
 main = "src/worker.js"
 compatibility_date = "2026-06-02"
 

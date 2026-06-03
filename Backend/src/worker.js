@@ -36,7 +36,7 @@ const BOTS = [
 
 const BOT_REPLIES = {
   'bot-sophia': [
-    "Hey! Thanks for reaching out. I'm Sophia. What brings you to MetWithStrangers?",
+    "Hey! Thanks for reaching out. I'm Sophia. What brings you to MetWitsh00?",
     "That's interesting! Tell me more about yourself.",
     "I love meeting new people. What are your hobbies?",
   ],
@@ -338,7 +338,7 @@ export class SwitchboardDO {
 
         if (isNew) {
           this.totalVisits++;
-          console.log('[MetWithStrangers] Total account creations:', this.totalVisits);
+          console.log('[MetWitsh00] Total account creations:', this.totalVisits);
         }
 
         this.queueBroadcast();
@@ -436,7 +436,7 @@ export class SwitchboardDO {
       return Response.json({ bots, total: bots.length }, { headers: CORS });
     }
 
-    return new Response('MetWithStrangers switchboard DO is running.', {
+    return new Response('MetWitsh00 switchboard DO is running.', {
       headers: { 'content-type': 'text/plain; charset=utf-8', ...CORS },
     });
   }
