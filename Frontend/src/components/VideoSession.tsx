@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
-  UserPlus, SkipForward, PhoneOff, Check, Video as VideoIcon,
-  Sparkles, ArrowLeft, Compass, MessagesSquare, Send, MessageCircle
+  UserPlus, SkipForward, PhoneOff, Check,
+  ArrowLeft, Compass, MessagesSquare, Send, MessageCircle
 } from "lucide-react";
 import { flagFor, type PeerUser, type UserProfile } from "@/lib/peerStore";
 import { webrtc } from "@/services/webrtc";
@@ -9,7 +9,7 @@ import { discovery } from "@/services/discovery";
 import { StorageService, type ChatMessage } from "@/services/storage";
 import { signaling } from "@/services/signaling";
 
-type Phase = "idle" | "requesting" | "searching" | "live" | "ended";
+type Phase = "requesting" | "searching" | "live" | "ended";
 
 interface Props {
   profile: UserProfile;
@@ -19,12 +19,11 @@ interface Props {
 }
 
 export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props) {
-  const [phase, setPhase] = useState<Phase>("idle");
+  const [phase, setPhase] = useState<Phase>("searching");
   const [peer, setPeer] = useState<Record<string, unknown> | null>(null);
   const [requested, setRequested] = useState(false);
   const [accepted, setAccepted] = useState(false);
   const [seconds, setSeconds] = useState(0);
-  const [online, setOnline] = useState(0);
   const [camError, setCamError] = useState("");
 
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -41,6 +40,27 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
 
   useEffect(() => {
     signaling.connect().catch(() => {});
+
+    const autoStart = async () => {
+      setCamError("");
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          setCamError("Camera not supported (require HTTPS)");
+          return;
+        }
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        webrtc.setLocalStream(stream);
+        webrtc.joinVideoQueue();
+      } catch (e: any) {
+        setCamError(
+          e.name === 'NotAllowedError' ? "Camera permission denied. Allow access and try again." :
+          e.name === 'NotFoundError' ? "No camera found." :
+          e.name === 'NotReadableError' ? "Camera in use by another app." :
+          "Camera access failed."
+        );
+      }
+    };
+    autoStart();
 
     const onLocalStream = (e: CustomEvent<{ stream: MediaStream }>) => {
       setLocalStream(e.detail.stream);
@@ -68,22 +88,16 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
       setMessages([]);
       setAccepted(false);
     };
-    const onMetrics = (e: CustomEvent<{ online: number }>) => {
-      setOnline(e.detail.online);
-    };
-
     window.addEventListener('whychat_local_stream', onLocalStream as EventListener);
     window.addEventListener('whychat_remote_stream', onRemoteStream as EventListener);
     window.addEventListener('whychat_video_cleanup', onCleanup);
     signaling.events.addEventListener('match_found', onMatchFound as EventListener);
-    signaling.events.addEventListener('global_metrics', onMetrics as EventListener);
 
     return () => {
       window.removeEventListener('whychat_local_stream', onLocalStream as EventListener);
       window.removeEventListener('whychat_remote_stream', onRemoteStream as EventListener);
       window.removeEventListener('whychat_video_cleanup', onCleanup);
       signaling.events.removeEventListener('match_found', onMatchFound as EventListener);
-      signaling.events.removeEventListener('global_metrics', onMetrics as EventListener);
     };
   }, []);
 
@@ -126,10 +140,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
     setCamError("");
     setPhase("requesting");
     const ok = await acquireCamera();
-    if (!ok) {
-      setPhase("idle");
-      return;
-    }
+    if (!ok) return;
     setRequested(false);
     setAccepted(false);
     setSeconds(0);
@@ -147,7 +158,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
     setPhase("searching");
     if (!webrtc.hasLocalStream()) {
       const ok = await acquireCamera();
-      if (!ok) { setPhase("idle"); return; }
+      if (!ok) return;
     }
     webrtc.joinVideoQueue();
   }, [acquireCamera]);
@@ -228,38 +239,6 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
   const fmt = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
-  /// ── Idle screen ──────────────────────────────────────────────────────────
-  if (phase === "idle") {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-6">
-        <div className="card-premium card-accent-top p-8 md:p-10 max-w-xl w-full text-center animate-in relative">
-          <button onClick={onBack} className="btn-ghost absolute top-5 left-5 flex items-center gap-1.5">
-            <ArrowLeft className="w-3.5 h-3.5" /> Back
-          </button>
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#7C3AED] to-[#EC4899] mx-auto mb-5 flex items-center justify-center shadow-md">
-            <VideoIcon className="w-7 h-7 text-white" />
-          </div>
-          <div className="badge-gradient mb-3 inline-block">Live Pool</div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2 text-balance">Meet a stranger.</h1>
-          <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-            Get paired with someone active in the pool right now.
-          </p>
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <span className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="text-xs font-semibold">{online.toLocaleString()} strangers online</span>
-          </div>
-          {camError && (
-            <div className="text-xs text-destructive bg-destructive/10 rounded-xl px-4 py-2 mb-4">{camError}</div>
-          )}
-          <button onClick={startMatching}
-            className="btn-gradient inline-flex items-center gap-2 px-8 py-3.5">
-            <Sparkles className="w-4 h-4" /> Start Matching
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   /// ── Ended screen ─────────────────────────────────────────────────────────
   if (phase === "ended") {
     return (
@@ -327,11 +306,15 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
               <div className="text-center bg-black/70 p-8 md:p-10 rounded-2xl backdrop-blur-sm">
                 <div className="w-20 h-20 md:w-24 md:h-24 rounded-full mx-auto mb-6 bg-gradient-to-br from-[#7C3AED] to-[#EC4899] shadow-lg animate-pulse" />
                 <div className="text-white text-xl md:text-2xl font-bold tracking-tight">
-                  {phase === "requesting" ? "Accessing camera…" : "Searching the pool…"}
+                  {camError ? "Camera Error" : "Searching the pool…"}
                 </div>
-                <div className="text-white/50 text-xs mt-2 uppercase tracking-widest">
-                  {phase === "requesting" ? "Grant permission when prompted" : "Pairing with a stranger"}
-                </div>
+                {camError ? (
+                  <div className="text-xs text-red-400 mt-2 max-w-xs mx-auto">{camError}</div>
+                ) : (
+                  <div className="text-white/50 text-xs mt-2 uppercase tracking-widest">
+                    Pairing with a stranger
+                  </div>
+                )}
               </div>
             </div>
           )}
