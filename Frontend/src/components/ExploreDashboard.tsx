@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
-import { MessageCircle, Check, UserPlus, Radio, Filter } from "lucide-react";
+import { MessageCircle, UserPlus, Check, Radio, Filter } from "lucide-react";
 import { COUNTRIES, LANGUAGES, flagFor, type PeerUser } from "@/lib/peerStore";
 import { StorageService, type Friend } from "@/services/storage";
 import { signaling } from "@/services/signaling";
@@ -14,7 +14,6 @@ interface Props {
 export function ExploreDashboard({ onOpenChat }: Props) {
   const [allPeers, setAllPeers] = useState<Array<Record<string, unknown>>>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [sentTo, setSentTo] = useState<Set<string>>(new Set());
 
   const [genderFilter, setGenderFilter] = useState<"all" | "M" | "F">("all");
   const [countryFilter, setCountryFilter] = useState<string>("all");
@@ -45,7 +44,6 @@ export function ExploreDashboard({ onOpenChat }: Props) {
 
     const updateStorageState = () => {
       setFriends(Object.values(StorageService.getFriends()));
-      setSentTo(new Set(StorageService.getRequests().outgoing));
     };
     updateStorageState();
 
@@ -84,7 +82,7 @@ export function ExploreDashboard({ onOpenChat }: Props) {
     });
   }, [allPeers, genderFilter, countryFilter, langFilter]);
 
-  const sendReq = (p: Record<string, unknown>) => {
+  const connectReq = (p: Record<string, unknown>) => {
     discovery.sendFriendRequest(String(p.id));
   };
 
@@ -94,70 +92,64 @@ export function ExploreDashboard({ onOpenChat }: Props) {
   };
 
   return (
-    <div className="p-5 md:p-6 pb-24 md:pb-6">
-      {/* Filter pills */}
-      <div className="card-premium p-3 mb-5 flex items-center gap-2 flex-wrap">
-        <Filter className="w-4 h-4 text-muted-foreground ml-1 shrink-0" />
+    <div className="p-3 md:p-6 pb-16 md:pb-6">
+      {/* Filter pills - compact on mobile */}
+      <div className="card-premium p-2 md:p-3 mb-4 flex items-center gap-1.5 md:gap-2 flex-nowrap md:flex-wrap overflow-x-auto">
+        <Filter className="w-3.5 h-3.5 text-muted-foreground shrink-0 hidden md:block" />
         <PillSelect label="Gender" value={genderFilter} setValue={(v) => setGenderFilter(v as typeof genderFilter)}
           options={[{ v: "all", l: "Any" }, { v: "F", l: "Female" }, { v: "M", l: "Male" }]} />
         <PillSelect label="Country" value={countryFilter} setValue={setCountryFilter}
-          options={[{ v: "all", l: "Anywhere" }, ...COUNTRIES.map((c) => ({ v: c.name, l: `${c.flag} ${c.name}` }))]} />
-        <PillSelect label="Language" value={langFilter} setValue={setLangFilter}
-          options={[{ v: "all", l: "Any" }, ...LANGUAGES.map((l) => ({ v: l, l }))]} />
-        <div className="ml-auto surface-soft flex items-center gap-2 px-3 py-1.5">
-          <Radio className="w-3.5 h-3.5 text-green-500" />
-          <span className="text-xs font-semibold tabular-nums">{filtered.length}</span>
-          <span className="tag-premium !text-[10px]">online now</span>
+          options={[{ v: "all", l: "Any" }, ...COUNTRIES.slice(0, 5).map((c) => ({ v: c.name, l: `${c.flag} ${c.name}` }))]} />
+        <PillSelect label="Lang" value={langFilter} setValue={setLangFilter}
+          options={[{ v: "all", l: "Any" }, ...LANGUAGES.slice(0, 8).map((l) => ({ v: l, l }))]} />
+        <div className="ml-auto surface-soft flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 shrink-0">
+          <Radio className="w-3 h-3 text-green-500" />
+          <span className="text-[11px] md:text-xs font-semibold tabular-nums">{filtered.length}</span>
+          <span className="tag-premium !text-[9px] md:!text-[10px] hidden md:inline">online</span>
         </div>
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 md:gap-4">
         {filtered.map((p, i) => {
-          const sent = sentTo.has(String(p.id));
           const isFriend = friends.some((f) => f.id === p.id);
           const accentClass = ACCENT_CLASSES[i % ACCENT_CLASSES.length];
           return (
             <article
               key={String(p.id)}
               style={{ animationDelay: `${i * 40}ms` }}
-              className={`card-premium-hover ${accentClass} p-5 animate-in`}
+              className={`card-premium-hover ${accentClass} p-4 md:p-5 animate-in`}
             >
               <div className="flex items-start gap-3 mb-3">
                 <div className="relative">
                   <img src={String(p.avatar ?? "")} alt={String(p.nickname ?? "")}
-                    className="w-14 h-14 rounded-2xl bg-secondary ring-2 ring-[#D8D0F5]" />
-                  <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 ring-2 ring-card" />
+                    className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-secondary ring-2 ring-[#D8D0F5]" />
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-green-500 ring-2 ring-card" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold tracking-tight truncate">{String(p.nickname ?? "")}</h3>
-                  <div className="tag-premium !text-[10px] mt-0.5">{flagFor(String(p.country ?? ""))} {String(p.country ?? "")}</div>
+                  <h3 className="font-bold tracking-tight truncate text-sm md:text-base">{String(p.nickname ?? "")}</h3>
+                  <div className="tag-premium !text-[9px] md:!text-[10px] mt-0.5">{flagFor(String(p.country ?? ""))} {String(p.country ?? "")}</div>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-1 mb-4 min-h-[26px]">
-                {(p.languages as string[] | undefined)?.map((l: string) => (
-                  <span key={l} className="text-[10px] font-semibold uppercase tracking-wider bg-secondary border border-border rounded-full px-2 py-0.5">{l}</span>
+              <div className="flex flex-wrap gap-1 mb-3 min-h-[22px]">
+                {(p.languages as string[] | undefined)?.slice(0, 3).map((l: string) => (
+                  <span key={l} className="text-[9px] md:text-[10px] font-semibold uppercase tracking-wider bg-secondary border border-border rounded-full px-1.5 md:px-2 py-0.5">{l}</span>
                 ))}
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                {isFriend ? (
-                  <button onClick={() => handleOpenChat(p)}
-                    className="col-span-2 btn-gradient text-center flex items-center justify-center gap-1.5">
-                    <MessageCircle className="w-3.5 h-3.5" /> Open Chat
+              <div className="grid grid-cols-2 gap-1.5 md:gap-2">
+                <button onClick={() => handleOpenChat(p)}
+                  className="btn-gradient text-[11px] md:text-xs font-semibold py-2 md:py-2.5 rounded-full flex items-center justify-center gap-1 md:gap-1.5">
+                  <MessageCircle className="w-3 h-3 md:w-3.5 md:h-3.5" /> Message
+                </button>
+                {!isFriend ? (
+                  <button onClick={() => connectReq(p)}
+                    className="btn-secondary text-[11px] md:text-xs font-semibold py-2 md:py-2.5 rounded-full flex items-center justify-center gap-1 md:gap-1.5">
+                    <UserPlus className="w-3 h-3 md:w-3.5 md:h-3.5" /> Connect
                   </button>
                 ) : (
-                  <>
-                    <button onClick={() => sendReq(p)} disabled={sent}
-                      className={`text-xs font-semibold py-2.5 rounded-full flex items-center justify-center gap-1.5 transition ${
-                        sent ? "bg-gradient-to-r from-[#10B981] to-[#6EE7B7] text-white shadow-sm" : "btn-gradient"
-                      }`}>
-                      {sent ? <><Check className="w-3.5 h-3.5" /> Sent</> : <><UserPlus className="w-3.5 h-3.5" /> Add</>}
-                    </button>
-                    <button onClick={() => handleOpenChat(p)}
-                      className="btn-secondary text-center flex items-center justify-center gap-1.5">
-                      <MessageCircle className="w-3.5 h-3.5" /> Message
-                    </button>
-                  </>
+                  <div className="text-[11px] md:text-xs font-semibold py-2 md:py-2.5 rounded-full flex items-center justify-center gap-1 md:gap-1.5 bg-gradient-to-r from-[#10B981] to-[#6EE7B7] text-white shadow-sm">
+                    <Check className="w-3 h-3 md:w-3.5 md:h-3.5" /> Friends
+                  </div>
                 )}
               </div>
             </article>
@@ -173,10 +165,10 @@ function PillSelect({ label, value, setValue, options }: {
   options: Array<{ v: string; l: string }>;
 }) {
   return (
-    <label className="surface-soft rounded-full px-3 py-1.5 flex items-center gap-2 text-xs">
-      <span className="tag-premium !text-[10px]">{label}</span>
+    <label className="surface-soft rounded-full px-2 md:px-3 py-1 md:py-1.5 flex items-center gap-1 md:gap-2 text-[11px] md:text-xs shrink-0">
+      <span className="tag-premium !text-[8px] md:!text-[10px]">{label}</span>
       <select value={value} onChange={(e) => setValue(e.target.value)}
-        className="bg-transparent outline-none text-xs font-semibold cursor-pointer">
+        className="bg-transparent outline-none text-[11px] md:text-xs font-semibold cursor-pointer max-w-[80px] md:max-w-none">
         {options.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
       </select>
     </label>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Send, ImagePlus, Mic, Square, Play } from "lucide-react";
+import { ArrowLeft, Send, ImagePlus, Mic, Square, Play, UserPlus, Check } from "lucide-react";
 import { flagFor, type PeerUser } from "@/lib/peerStore";
 import { StorageService, type ChatMessage } from "@/services/storage";
 import { webrtc } from "@/services/webrtc";
@@ -16,10 +16,16 @@ export function PersistentChat({ peer, onBack }: Props) {
   );
   const [draft, setDraft] = useState("");
   const [recording, setRecording] = useState(false);
+  const [isFriend, setIsFriend] = useState(false);
   const mediaRecRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const feedRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const friends = StorageService.getFriends();
+    setIsFriend(!!friends[peer.id]);
+  }, [peer.id]);
 
   useEffect(() => {
     const initiate = discovery.chatInitiatorFor === peer.id;
@@ -36,6 +42,10 @@ export function PersistentChat({ peer, onBack }: Props) {
         if (chats[peer.id]) {
           setMessages(chats[peer.id]);
         }
+      }
+      if (e.detail.key === 'whychat_friends') {
+        const friends = e.detail.value;
+        setIsFriend(!!friends[peer.id]);
       }
     };
 
@@ -126,25 +136,41 @@ export function PersistentChat({ peer, onBack }: Props) {
     setRecording(false);
   };
 
+  const handleConnect = () => {
+    discovery.sendFriendRequest(peer.id);
+    setIsFriend(true);
+  };
+
   return (
     <div className="w-full h-full flex flex-col card-premium card-accent-top overflow-hidden">
       {/* Header */}
-      <div className="px-4 md:px-5 py-3.5 md:py-4 flex items-center gap-3 border-b border-border">
-        <button onClick={onBack} className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:opacity-80 transition shrink-0">
+      <div className="px-3 md:px-5 py-3 md:py-4 flex items-center gap-2 md:gap-3 border-b border-border">
+        <button onClick={onBack} className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-secondary flex items-center justify-center hover:opacity-80 transition shrink-0">
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <img src={peer.avatar} alt="" className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-secondary ring-2 ring-[#D8D0F5]" />
+        <img src={peer.avatar} alt="" className="w-9 h-9 md:w-11 md:h-11 rounded-full bg-secondary ring-2 ring-[#D8D0F5]" />
         <div className="flex-1 min-w-0">
-          <div className="font-bold tracking-tight truncate">{peer.nickname}</div>
-          <div className="tag-premium !text-[10px]">
+          <div className="font-bold tracking-tight truncate text-sm md:text-base">{peer.nickname}</div>
+          <div className="tag-premium !text-[9px] md:!text-[10px]">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block mr-1.5 align-middle" />
-            {flagFor(peer.country)} {peer.country} · peer-to-peer
+            {flagFor(peer.country)} {peer.country}
           </div>
         </div>
+        {!isFriend && (
+          <button onClick={handleConnect}
+            className="btn-gradient text-[11px] md:text-xs font-semibold px-3 md:px-4 py-1.5 md:py-2 rounded-full flex items-center gap-1.5 shrink-0">
+            <UserPlus className="w-3.5 h-3.5" /> Connect
+          </button>
+        )}
+        {isFriend && (
+          <div className="text-[11px] md:text-xs font-semibold px-3 md:px-4 py-1.5 md:py-2 rounded-full flex items-center gap-1.5 bg-gradient-to-r from-[#10B981] to-[#6EE7B7] text-white shadow-sm">
+            <Check className="w-3.5 h-3.5" /> Friends
+          </div>
+        )}
       </div>
 
       {/* Feed */}
-      <div ref={feedRef} className="flex-1 overflow-y-auto px-4 md:px-5 py-5 md:py-6 space-y-3 bg-[#FAFAFE]">
+      <div ref={feedRef} className="flex-1 overflow-y-auto px-3 md:px-5 py-4 md:py-6 space-y-3 bg-[#FAFAFE]">
         {messages.length === 0 && (
           <div className="text-center text-sm text-muted-foreground py-12">
             Say hi to {peer.nickname}
@@ -156,8 +182,8 @@ export function PersistentChat({ peer, onBack }: Props) {
       </div>
 
       {/* Composer */}
-      <div className="px-3 py-3 border-t border-border">
-        <div className="bg-secondary rounded-full px-3 py-2 flex items-center gap-2">
+      <div className="px-2 md:px-3 py-2 md:py-3 border-t border-border">
+        <div className="bg-secondary rounded-full px-2 md:px-3 py-1.5 md:py-2 flex items-center gap-1.5 md:gap-2">
           <input ref={fileRef} type="file" accept="image/*" className="hidden"
             onChange={(e) => {
               if (e.target.files && e.target.files[0]) {
@@ -166,25 +192,25 @@ export function PersistentChat({ peer, onBack }: Props) {
               }
             }} />
           <button onClick={() => fileRef.current?.click()}
-            className="w-9 h-9 rounded-full bg-card text-foreground flex items-center justify-center hover:opacity-80 transition shrink-0 border border-border">
-            <ImagePlus className="w-4 h-4" />
+            className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-card text-foreground flex items-center justify-center hover:opacity-80 transition shrink-0 border border-border">
+            <ImagePlus className="w-3.5 h-3.5 md:w-4 md:h-4" />
           </button>
           <button onClick={recording ? stopRec : startRec}
-            className={`w-9 h-9 rounded-full flex items-center justify-center transition shrink-0 border border-border ${
+            className={`w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center transition shrink-0 border border-border ${
               recording ? "bg-gradient-to-r from-[#EF4444] to-[#F87171] text-white" : "bg-card text-foreground hover:opacity-80"
             }`}>
-            {recording ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            {recording ? <Square className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <Mic className="w-3.5 h-3.5 md:w-4 md:h-4" />}
           </button>
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}
             placeholder="Type a message…"
-            className="flex-1 bg-transparent text-sm outline-none px-1 md:px-2 placeholder:text-muted-foreground"
+            className="flex-1 bg-transparent text-sm outline-none px-1 placeholder:text-muted-foreground"
           />
           <button onClick={send}
-            className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#EC4899] text-white flex items-center justify-center hover:opacity-85 transition shrink-0 shadow-sm">
-            <Send className="w-4 h-4" />
+            className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#EC4899] text-white flex items-center justify-center hover:opacity-85 transition shrink-0 shadow-sm">
+            <Send className="w-3.5 h-3.5 md:w-4 md:h-4" />
           </button>
         </div>
       </div>
@@ -194,7 +220,7 @@ export function PersistentChat({ peer, onBack }: Props) {
 
 function Bubble({ m }: { m: ChatMessage }) {
   const mine = m.senderId === "me";
-  const base = "max-w-[75%] rounded-2xl px-4 py-2.5 text-sm animate-in shadow-sm";
+  const base = "max-w-[75%] rounded-2xl px-3 md:px-4 py-2 md:py-2.5 text-sm animate-in shadow-sm";
   const skin = mine
     ? "bg-gradient-to-r from-[#7C3AED] to-[#A78BFA] text-white rounded-br-sm"
     : "bg-card text-foreground rounded-bl-sm border border-border";
@@ -203,12 +229,12 @@ function Bubble({ m }: { m: ChatMessage }) {
       <div className={`${base} ${skin}`}>
         {m.type === "text" && <span className="whitespace-pre-wrap break-words">{m.content}</span>}
         {m.type === "image" && (
-          <img src={m.content} alt="" className="rounded-2xl max-w-xs max-h-72 -mx-1 -my-1" />
+          <img src={m.content} alt="" className="rounded-xl max-w-[200px] md:max-w-xs max-h-48 md:max-h-72 -mx-1 -my-1" />
         )}
         {m.type === "voice" && (
-          <div className="flex items-center gap-2 min-w-[160px]">
-            <Play className="w-4 h-4" />
-            <audio src={m.content} controls className="h-8" />
+          <div className="flex items-center gap-2 min-w-[140px] md:min-w-[160px]">
+            <Play className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            <audio src={m.content} controls className="h-7 md:h-8" />
           </div>
         )}
       </div>

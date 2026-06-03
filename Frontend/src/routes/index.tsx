@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, useRef } from "react";
-import { Sparkles, MessageCircle, Globe2, Shield, Users, ArrowRight, ChevronDown, Languages, Compass, UserPlus, Check } from "lucide-react";
+import { Sparkles, Globe2, Shield, Users, ArrowRight, Languages } from "lucide-react";
 import { MeshBackdrop } from "@/components/MeshBackdrop";
 import { RegistrationCard } from "@/components/RegistrationCard";
 import { ExploreDashboard } from "@/components/ExploreDashboard";
@@ -10,21 +10,32 @@ import { FriendsTab } from "@/components/FriendsTab";
 import { TopNav } from "@/components/TopNav";
 import { BottomNav, type Tab } from "@/components/BottomNav";
 import { StorageService } from "@/services/storage";
-import { COUNTRIES, flagFor, avatarFor, type Gender, type UserProfile, type PeerUser } from "@/lib/peerStore";
+import { COUNTRIES, LANGUAGES, flagFor, avatarFor, type Gender, type UserProfile, type PeerUser } from "@/lib/peerStore";
 import { signaling } from "@/services/signaling";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "WhyChat — Connect with Strangers Worldwide | Free Global Chat" },
-      { name: "description", content: "Join WhyChat and meet strangers from 150+ countries. Free global chat platform for language exchange, making friends, and cultural discovery. Real-time messaging, no signup required." },
-      { name: "keywords", content: "chat with strangers, online chat, free chat app, global chat, language exchange, meet new people, anonymous chat, text chat, make friends online, international chat, why chat, stranger chat" },
-      { property: "og:title", content: "WhyChat — Connect with Strangers Worldwide" },
-      { property: "og:description", content: "Meet new people from around the world. Free, instant, and private." },
+      { title: "WhyChat — Connect with Strangers Worldwide | Free Global Chat | No Signup" },
+      { name: "description", content: "Join WhyChat and meet strangers from 150+ countries. Free global chat platform for language exchange, making friends, and cultural discovery. Supports English, Hindi, Tamil, Malayalam, Telugu, Kannada, Bengali, Spanish, Japanese & more. Real-time messaging, no signup required." },
+      { name: "keywords", content: "chat with strangers, online chat, free chat app, global chat, language exchange, meet new people, anonymous chat, text chat, make friends online, international chat, why chat, stranger chat, hindi chat, tamil chat, malayalam chat, telugu chat, india chat, language practice, free messaging, no signup chat, private chat" },
+      { name: "robots", content: "index, follow" },
+      { name: "googlebot", content: "index, follow" },
+      { property: "og:title", content: "WhyChat — Connect with Strangers Worldwide | Free & Private" },
+      { property: "og:description", content: "Meet new people from around the world. Free, instant, and private. Supports 26+ languages including Hindi, Tamil, Malayalam & more." },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://whychat.pages.dev" },
+      { property: "og:site_name", content: "WhyChat" },
+      { property: "og:locale", content: "en_US" },
+      { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "WhyChat — Connect with Strangers Worldwide" },
-      { name: "twitter:description", content: "Meet new people from around the world. Free, instant, and private." },
+      { name: "twitter:description", content: "Free global chat to meet people from 150+ countries. No signup, no data stored. Supports 26+ languages." },
+      { name: "twitter:site", content: "@whychat" },
+      { name: "twitter:creator", content: "@whychat" },
     ],
-    links: [],
+    links: [
+      { rel: "canonical", href: "https://whychat.pages.dev" },
+    ],
     scripts: [
       {
         type: "application/ld+json",
@@ -33,12 +44,13 @@ export const Route = createFileRoute("/")({
           "@type": "WebApplication",
           name: "WhyChat",
           url: "https://whychat.pages.dev",
-          description: "Free global chat platform to meet strangers, make friends, practice languages, and discover cultures through real-time messaging.",
+          description: "Free global chat platform to meet strangers, make friends, practice languages, and discover cultures through real-time messaging. Supports 26+ languages with no signup required.",
           applicationCategory: "SocialNetworking",
           operatingSystem: "All",
           browserRequirements: "Requires JavaScript",
           offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
           author: { "@type": "Organization", name: "WhyChat" },
+          inLanguage: ["English", "Hindi", "Tamil", "Malayalam", "Telugu", "Kannada", "Bengali", "Spanish", "Japanese", "Mandarin", "Arabic", "Portuguese", "French", "German", "Korean"],
         }),
       },
     ],
@@ -294,7 +306,7 @@ function MiniRegistrationCard({ onComplete }: { onComplete: (p: UserProfile) => 
         <div className="mb-8">
           <span className="tag-premium flex items-center gap-1.5 mb-2"><Languages className="w-3 h-3" /> Languages</span>
           <div className="flex flex-wrap gap-1.5">
-            {["English", "Spanish", "Mandarin", "Arabic", "Portuguese", "French", "German", "Japanese", "Korean", "Italian", "Turkish", "Russian"].map((l) => {
+            {LANGUAGES.map((l) => {
               const active = langs.includes(l);
               return <button key={l} type="button" onClick={() => toggleLang(l)}
                 className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all duration-200 ${active ? "bg-gradient-to-r from-[#7C3AED] to-[#A78BFA] text-white border-transparent shadow-sm" : "bg-secondary text-foreground border-transparent hover:bg-muted"}`}>
