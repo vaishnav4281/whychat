@@ -186,7 +186,7 @@ export function PersistentChat({ peer, onBack }: Props) {
       </div>
 
       {/* Composer */}
-      <div className="px-2 md:px-3 py-1.5 md:py-2 border-t border-border">
+      <div className="px-2 md:px-3 py-1.5 md:py-2 pb-20 border-t border-border">
         <div className="bg-secondary rounded-full px-2 md:px-3 py-1 md:py-1.5 flex items-center gap-1 md:gap-1.5">
           <input ref={fileRef} type="file" accept="image/*" className="hidden"
             onChange={(e) => {
