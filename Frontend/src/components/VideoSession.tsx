@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
   UserPlus, SkipForward, PhoneOff, Check, Video as VideoIcon,
-  Sparkles, ArrowLeft, Compass, MessagesSquare, Send
+  Sparkles, ArrowLeft, Compass, MessagesSquare, Send, MessageCircle
 } from "lucide-react";
 import { flagFor, type PeerUser, type UserProfile } from "@/lib/peerStore";
 import { webrtc } from "@/services/webrtc";
@@ -9,7 +9,7 @@ import { discovery } from "@/services/discovery";
 import { StorageService, type ChatMessage } from "@/services/storage";
 import { signaling } from "@/services/signaling";
 
-type Phase = "idle" | "searching" | "live" | "ended";
+type Phase = "idle" | "requesting" | "searching" | "live" | "ended";
 
 interface Props {
   profile: UserProfile;
@@ -25,6 +25,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
   const [accepted, setAccepted] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [online, setOnline] = useState(0);
+  const [camError, setCamError] = useState("");
 
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
@@ -36,39 +37,37 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
   const localRef = useRef<HTMLVideoElement>(null);
   const remoteRef = useRef<HTMLVideoElement>(null);
 
+  const [showChat, setShowChat] = useState(true);
+
   useEffect(() => {
     signaling.connect().catch(() => {});
 
     const onLocalStream = (e: CustomEvent<{ stream: MediaStream }>) => {
       setLocalStream(e.detail.stream);
     };
-
     const onRemoteStream = (e: CustomEvent<{ stream: MediaStream }>) => {
       setRemoteStream(e.detail.stream);
     };
-
     const onCleanup = () => {
       setLocalStream(null);
       setRemoteStream(null);
       if (localRef.current) localRef.current.srcObject = null;
       if (remoteRef.current) remoteRef.current.srcObject = null;
     };
-
     const onMatchFound = (e: CustomEvent<{ peerId: string; initiateCall: boolean; peer?: any }>) => {
-      const matchedPeer = e.detail.peer ?? {
+      setPeer(e.detail.peer ?? {
         id: e.detail.peerId,
         name: 'Stranger',
         nickname: 'Stranger',
         country: 'United States',
         languages: ['English'],
         avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=' + e.detail.peerId
-      };
-      setPeer(matchedPeer);
+      });
       setPhase("live");
       setSeconds(0);
       setMessages([]);
+      setAccepted(false);
     };
-
     const onMetrics = (e: CustomEvent<{ online: number }>) => {
       setOnline(e.detail.online);
     };
@@ -91,28 +90,67 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
   useEffect(() => {
     if (localRef.current && localStream) {
       if (localRef.current.srcObject !== localStream) localRef.current.srcObject = localStream;
-      localRef.current.play().catch(e => console.error("Local play blocked", e));
+      localRef.current.play().catch(() => {});
     }
-  }, [localStream, phase]);
+  }, [localStream]);
 
   useEffect(() => {
     if (remoteRef.current && remoteStream) {
       if (remoteRef.current.srcObject !== remoteStream) remoteRef.current.srcObject = remoteStream;
-      remoteRef.current.play().catch(e => console.error("Remote play blocked", e));
+      remoteRef.current.play().catch(() => {});
     }
-  }, [remoteStream, phase]);
+  }, [remoteStream]);
 
-  const matchNext = useCallback(() => {
+  const acquireCamera = useCallback(async (): Promise<boolean> => {
+    if (webrtc.hasLocalStream()) return true;
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setCamError("Camera not supported (require HTTPS)");
+        return false;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      webrtc.setLocalStream(stream);
+      return true;
+    } catch (e: any) {
+      setCamError(
+        e.name === 'NotAllowedError' ? "Camera permission denied. Allow access and try again." :
+        e.name === 'NotFoundError' ? "No camera found." :
+        e.name === 'NotReadableError' ? "Camera in use by another app." :
+        "Camera access failed."
+      );
+      return false;
+    }
+  }, []);
+
+  const startMatching = useCallback(async () => {
+    setCamError("");
+    setPhase("requesting");
+    const ok = await acquireCamera();
+    if (!ok) {
+      setPhase("idle");
+      return;
+    }
     setRequested(false);
     setAccepted(false);
     setSeconds(0);
     setPhase("searching");
     webrtc.joinVideoQueue();
-  }, []);
+  }, [acquireCamera]);
 
-  const enterPool = useCallback(() => {
-    matchNext();
-  }, [matchNext]);
+  const matchNext = useCallback(async () => {
+    webrtc.closeConnections();
+    setCamError("");
+    setRequested(false);
+    setAccepted(false);
+    setSeconds(0);
+    setMessages([]);
+    setPhase("searching");
+    if (!webrtc.hasLocalStream()) {
+      const ok = await acquireCamera();
+      if (!ok) { setPhase("idle"); return; }
+    }
+    webrtc.joinVideoQueue();
+  }, [acquireCamera]);
 
   const endCall = () => {
     webrtc.closeConnections();
@@ -136,7 +174,6 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
       setAccepted(true);
       setTimeout(() => setAccepted(false), 3000);
     };
-
     const handleTextRecv = (e: CustomEvent<{ text: string, sender: string }>) => {
       if (!peer || e.detail.sender !== peer.id) return;
       const m: ChatMessage = {
@@ -148,7 +185,6 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
       setMessages(p => [...p, m]);
       StorageService.addChatMessage(peer.id, m);
     };
-
     const onPartnerLeft = () => {
       matchNext();
     };
@@ -192,6 +228,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
   const fmt = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
+  /// ── Idle screen ──────────────────────────────────────────────────────────
   if (phase === "idle") {
     return (
       <div className="min-h-screen flex items-center justify-center px-6">
@@ -203,17 +240,18 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
             <VideoIcon className="w-7 h-7 text-white" />
           </div>
           <div className="badge-gradient mb-3 inline-block">Live Pool</div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2 text-balance">
-            Meet a stranger.
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight mb-2 text-balance">Meet a stranger.</h1>
           <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
             Get paired with someone active in the pool right now.
           </p>
-          <div className="flex items-center justify-center gap-2 mb-6">
+          <div className="flex items-center justify-center gap-2 mb-4">
             <span className="w-2 h-2 rounded-full bg-green-500" />
             <span className="text-xs font-semibold">{online.toLocaleString()} strangers online</span>
           </div>
-          <button onClick={enterPool}
+          {camError && (
+            <div className="text-xs text-destructive bg-destructive/10 rounded-xl px-4 py-2 mb-4">{camError}</div>
+          )}
+          <button onClick={startMatching}
             className="btn-gradient inline-flex items-center gap-2 px-8 py-3.5">
             <Sparkles className="w-4 h-4" /> Start Matching
           </button>
@@ -222,6 +260,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
     );
   }
 
+  /// ── Ended screen ─────────────────────────────────────────────────────────
   if (phase === "ended") {
     return (
       <div className="min-h-screen flex items-center justify-center px-6">
@@ -229,7 +268,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
           <div className="badge-pink mb-2 inline-block">Call Ended</div>
           <h2 className="text-2xl font-bold mb-6">What next?</h2>
           <div className="grid gap-2">
-            <button onClick={matchNext}
+            <button onClick={() => matchNext()}
               className="btn-gradient inline-flex items-center justify-center gap-2 py-3">
               <SkipForward className="w-4 h-4" /> Match Again
             </button>
@@ -247,64 +286,110 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
     );
   }
 
-  const isSearching = phase === "searching" || !peer;
-  return (
-    <div className="fixed inset-0 z-40 p-0 md:p-6 bg-black/60 flex items-center justify-center">
-      <div className="relative w-full h-full md:h-[calc(100vh-3rem)] md:rounded-[2rem] overflow-hidden bg-neutral-900 shadow-2xl md:max-w-[calc(100vw-3rem)]">
-        <video ref={remoteRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover z-0" />
+  /// ── Live / Searching ─────────────────────────────────────────────────────
+  const isSearching = phase === "requesting" || phase === "searching" || !peer;
 
-        <div className="absolute inset-0 z-10 flex items-center justify-center">
+  return (
+    <div className="fixed inset-0 z-40 bg-black flex flex-col">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-3 py-2 md:px-4 md:py-3 z-20 bg-neutral-900 shrink-0">
+        <button onClick={() => { endCall(); onBack(); }}
+          className="bg-white/20 rounded-full px-3 py-1.5 text-xs font-semibold text-white flex items-center gap-1.5 hover:bg-white/30 transition">
+          <ArrowLeft className="w-3.5 h-3.5" /> Exit
+        </button>
+
+        <div className="bg-white/20 rounded-full px-3 py-1.5 flex items-center gap-2 text-xs font-semibold text-white">
+          <span className={`w-2 h-2 rounded-full ${isSearching ? "bg-amber-400" : "bg-red-500"}`} />
+          {isSearching ? "MATCHING" : `LIVE · ${fmt(seconds)}`}
+        </div>
+
+        {!isSearching && (
+          <button onClick={() => setShowChat(p => !p)}
+            className="bg-white/20 rounded-full px-3 py-1.5 text-xs font-semibold text-white flex items-center gap-1.5 hover:bg-white/30 transition md:hidden">
+            <MessageCircle className="w-3.5 h-3.5" />
+            {showChat ? "Hide Chat" : "Chat"}
+          </button>
+        )}
+        {!isSearching && <div className="hidden md:block w-20" />}
+      </div>
+
+      {/* Main content: flex row on desktop, column on mobile */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        {/* Video area */}
+        <div className={`flex-1 relative bg-neutral-900 ${!isSearching && showChat ? 'hidden md:flex' : 'flex'} flex-col`}>
+          {/* Remote video */}
+          <video ref={remoteRef} autoPlay playsInline
+            className="absolute inset-0 w-full h-full object-cover" />
+
+          {/* Searching overlay */}
           {isSearching && (
-            <div className="text-center bg-black/70 p-8 md:p-10 rounded-2xl backdrop-blur-sm">
-              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full mx-auto mb-6 bg-gradient-to-br from-[#7C3AED] to-[#EC4899] shadow-lg" />
-              <div className="text-white text-xl md:text-2xl font-bold tracking-tight">Searching the pool…</div>
-              <div className="text-white/50 text-xs mt-2 uppercase tracking-widest">Pairing with a stranger</div>
+            <div className="absolute inset-0 z-10 flex items-center justify-center">
+              <div className="text-center bg-black/70 p-8 md:p-10 rounded-2xl backdrop-blur-sm">
+                <div className="w-20 h-20 md:w-24 md:h-24 rounded-full mx-auto mb-6 bg-gradient-to-br from-[#7C3AED] to-[#EC4899] shadow-lg animate-pulse" />
+                <div className="text-white text-xl md:text-2xl font-bold tracking-tight">
+                  {phase === "requesting" ? "Accessing camera…" : "Searching the pool…"}
+                </div>
+                <div className="text-white/50 text-xs mt-2 uppercase tracking-widest">
+                  {phase === "requesting" ? "Grant permission when prompted" : "Pairing with a stranger"}
+                </div>
+              </div>
             </div>
           )}
 
+          {/* Peer info overlay (shown until remote video arrives) */}
           {!isSearching && (
-            <div className="text-center absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ opacity: remoteRef.current?.srcObject ? 0 : 1 }}>
+            <div
+              className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none transition-opacity duration-500"
+              style={{ opacity: remoteStream ? 0 : 1 }}
+            >
               <img src={String(peer?.avatar ?? "")} alt={String(peer?.nickname ?? "")}
-                className="w-32 h-32 md:w-40 md:h-40 rounded-2xl mb-6 ring-2 ring-white/20 bg-white/10" />
-              <div className="text-white text-2xl md:text-3xl font-bold tracking-tight drop-shadow-lg">{String(peer?.nickname ?? "")}</div>
+                className="w-28 h-28 md:w-36 md:h-36 rounded-2xl mb-5 ring-2 ring-white/20 bg-white/10" />
+              <div className="text-white text-2xl md:text-3xl font-bold tracking-tight drop-shadow-lg">
+                {String(peer?.nickname ?? "")}
+              </div>
               <div className="text-white/80 text-sm mt-1 uppercase tracking-widest drop-shadow-md font-semibold">
                 {flagFor(String(peer?.country ?? ""))} {String(peer?.country ?? "")}
               </div>
             </div>
           )}
-        </div>
 
-        <div className="absolute top-0 left-0 right-0 p-3 md:p-4 flex items-center justify-between z-20 bg-gradient-to-b from-black/60 to-transparent">
-          <button onClick={() => { endCall(); onBack(); }}
-            className="bg-white/20 backdrop-blur-md rounded-full px-3 py-1.5 text-xs font-semibold text-white flex items-center gap-1.5 hover:bg-white/30 transition">
-            <ArrowLeft className="w-3.5 h-3.5" /> Exit
-          </button>
-          <div className="bg-white/20 backdrop-blur-md rounded-full px-3 py-1.5 flex items-center gap-2 text-xs font-semibold text-white">
-            <span className={`w-2 h-2 rounded-full ${isSearching ? "bg-amber-400" : "bg-red-500"}`} />
-            {isSearching ? "MATCHING" : `LIVE · ${fmt(seconds)}`}
-          </div>
-        </div>
-
-        <div className="absolute top-14 right-3 md:top-16 md:right-4 w-32 h-24 md:w-48 md:h-36 rounded-2xl overflow-hidden ring-2 ring-white/20 shadow-2xl bg-black z-20">
-          <video ref={localRef} autoPlay muted playsInline className="w-full h-full object-cover" />
-          <div className="absolute bottom-1 left-2 text-[10px] uppercase tracking-widest text-white/80 font-semibold drop-shadow-md">You</div>
-        </div>
-
-        {accepted && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-md rounded-2xl px-8 py-6 text-center animate-in z-30 pointer-events-none">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#10B981] to-[#6EE7B7] flex items-center justify-center mx-auto mb-3 shadow-md">
-              <Check className="w-7 h-7 text-white" />
+          {/* PIP local video */}
+          {!isSearching && localStream && (
+            <div className="absolute top-3 right-3 w-28 h-20 md:w-44 md:h-32 rounded-xl overflow-hidden ring-2 ring-white/30 shadow-2xl bg-black z-20">
+              <video ref={localRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+              <div className="absolute bottom-1 left-2 text-[10px] uppercase tracking-widest text-white/80 font-semibold drop-shadow-md">You</div>
             </div>
-            <div className="font-bold text-lg text-foreground">You're now friends</div>
-            <div className="text-xs text-muted-foreground mt-1">Chat history is now saved</div>
-          </div>
-        )}
+          )}
 
-        {!isSearching && (
-          <div className="absolute bottom-24 left-3 md:left-6 right-3 md:right-auto md:w-96 rounded-2xl md:rounded-3xl flex flex-col z-30 h-64 md:h-72 overflow-hidden pointer-events-auto bg-black/50 border border-white/10 backdrop-blur-xl animate-in shadow-2xl">
-            <div ref={feedRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+          {/* Friend accepted notification */}
+          {accepted && (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-md rounded-2xl px-8 py-6 text-center z-30 pointer-events-none">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#10B981] to-[#6EE7B7] flex items-center justify-center mx-auto mb-3 shadow-md">
+                <Check className="w-7 h-7 text-white" />
+              </div>
+              <div className="font-bold text-lg text-foreground">You're now friends</div>
+              <div className="text-xs text-muted-foreground mt-1">Chat history is now saved</div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Chat panel (side-by-side on desktop, overlay on mobile) ─────── */}
+          {!isSearching && showChat && (
+            <div className={[
+              "md:flex w-80 xl:w-96 flex-col border-l border-white/10 bg-neutral-800/95 backdrop-blur-xl",
+              "md:hidden fixed inset-x-0 bottom-0 z-30 rounded-t-2xl bg-neutral-800/95 backdrop-blur-xl max-h-[50vh] border-t border-white/10",
+            ].join(' ')}>
+            {/* Chat header on mobile */}
+            <div className="flex items-center justify-between px-4 py-2 border-b border-white/10 md:hidden">
+              <span className="text-xs font-semibold uppercase tracking-widest text-white/50">Live Chat</span>
+              <button onClick={() => setShowChat(false)}
+                className="text-white/50 text-xs">Close</button>
+            </div>
+
+            {/* Messages */}
+            <div ref={feedRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5 min-h-0">
               {messages.length === 0 && (
-                <div className="text-center text-xs text-white/40 py-4 font-semibold uppercase tracking-widest">
+                <div className="text-center text-xs text-white/40 py-6 font-semibold uppercase tracking-widest">
                   Live Chat
                 </div>
               )}
@@ -323,7 +408,9 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
                 );
               })}
             </div>
-            <div className="px-3 py-3 border-t border-white/10 bg-black/40">
+
+            {/* Input */}
+            <div className="px-3 py-3 border-t border-white/10 shrink-0">
               <div className="bg-white/10 rounded-full px-3 py-1.5 flex items-center gap-2">
                 <input
                   value={draft}
@@ -341,40 +428,36 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
             </div>
           </div>
         )}
-
-        <div className="absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-20 w-[calc(100%-1.5rem)] md:w-auto">
-          <div className="bg-white/20 backdrop-blur-md rounded-full p-2 flex items-center justify-center gap-1.5 md:gap-2">
-            <button
-              onClick={sendRequest}
-              disabled={requested || isSearching}
-              className={`px-3 md:px-5 py-2.5 md:py-3 rounded-full text-xs md:text-sm font-semibold flex items-center gap-1.5 md:gap-2 transition ${
-                requested
-                  ? "bg-gradient-to-r from-[#10B981] to-[#6EE7B7] text-white shadow-sm"
-                  : isSearching
-                  ? "bg-white/20 text-white/40 cursor-not-allowed"
-                  : "bg-white text-foreground hover:opacity-80"
-              }`}
-            >
-              {requested ? <><Check className="w-4 h-4" /> Sent</> : <><UserPlus className="w-4 h-4" /> Add Friend</>}
-            </button>
-            <button
-              onClick={skipCall}
-              disabled={isSearching}
-              className={`px-3 md:px-5 py-2.5 md:py-3 rounded-full text-xs md:text-sm font-semibold flex items-center gap-1.5 md:gap-2 transition ${
-                isSearching ? "bg-white/20 text-white/40 cursor-not-allowed" : "bg-white text-foreground hover:opacity-80"
-              }`}
-            >
-              <SkipForward className="w-4 h-4" /> Skip
-            </button>
-            <button
-              onClick={endCall}
-              className="px-3 md:px-5 py-2.5 md:py-3 rounded-full bg-gradient-to-r from-[#EF4444] to-[#F87171] text-white text-xs md:text-sm font-semibold flex items-center gap-1.5 md:gap-2 shadow-sm hover:opacity-90 transition"
-            >
-              <PhoneOff className="w-4 h-4" /> End
-            </button>
-          </div>
-        </div>
       </div>
+
+      {/* ── Bottom controls ──────────────────────────────────────────────── */}
+      {!isSearching && (
+        <div className="flex items-center justify-center gap-2 md:gap-3 px-4 py-3 md:py-4 bg-neutral-900 shrink-0 z-20">
+          <button
+            onClick={sendRequest}
+            disabled={requested}
+            className={`px-4 md:px-6 py-2.5 md:py-3 rounded-full text-xs md:text-sm font-semibold flex items-center gap-1.5 md:gap-2 transition ${
+              requested
+                ? "bg-gradient-to-r from-[#10B981] to-[#6EE7B7] text-white shadow-sm"
+                : "bg-white text-foreground hover:opacity-80"
+            }`}
+          >
+            {requested ? <><Check className="w-4 h-4" /> Friend Added</> : <><UserPlus className="w-4 h-4" /> Add Friend</>}
+          </button>
+          <button
+            onClick={skipCall}
+            className="px-4 md:px-6 py-2.5 md:py-3 rounded-full text-xs md:text-sm font-semibold flex items-center gap-1.5 md:gap-2 bg-white text-foreground hover:opacity-80 transition"
+          >
+            <SkipForward className="w-4 h-4" /> Skip
+          </button>
+          <button
+            onClick={endCall}
+            className="px-4 md:px-6 py-2.5 md:py-3 rounded-full bg-gradient-to-r from-[#EF4444] to-[#F87171] text-white text-xs md:text-sm font-semibold flex items-center gap-1.5 md:gap-2 shadow-sm hover:opacity-90 transition"
+          >
+            <PhoneOff className="w-4 h-4" /> End
+          </button>
+        </div>
+      )}
     </div>
   );
 }

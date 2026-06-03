@@ -5,9 +5,8 @@ export class WebRTCService {
   private localStream: MediaStream | null = null;
   private dataChannel: RTCDataChannel | null = null;
   private partnerId: string | null = null;
-  
-  // File chunking config
-  private readonly CHUNK_SIZE = 16384; // 16KB
+
+  private readonly CHUNK_SIZE = 16384;
   private incomingMedia: {
     chunks: Uint8Array[];
     mimeType: string;
@@ -29,18 +28,23 @@ export class WebRTCService {
     }) as EventListener);
   }
 
+  /** Pre-set a local stream acquired via user gesture */
+  public setLocalStream(stream: MediaStream) {
+    this.localStream = stream;
+    window.dispatchEvent(new CustomEvent('whychat_local_stream', { detail: { stream } }));
+  }
+
+  public hasLocalStream(): boolean {
+    return this.localStream !== null;
+  }
+
   public joinVideoQueue() {
     signaling.send({ type: 'join_video_queue' });
   }
 
   public skipVideo() {
-    // 1. Instantly close open stream channels & clear connections
     this.closeConnections();
-
-    // 2. Notify the server
     signaling.send({ type: 'leave_video' });
-
-    // 3. Loop back to re-invoke join_video_queue
     this.joinVideoQueue();
   }
 
@@ -58,14 +62,12 @@ export class WebRTCService {
       this.peerConnection = null;
     }
     this.partnerId = null;
-    
-    // Clear dom event for UI to react
     window.dispatchEvent(new Event('whychat_video_cleanup'));
   }
 
   public async establishDataConnection(peerId: string) {
     this.partnerId = peerId;
-    
+
     const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
     this.peerConnection = new RTCPeerConnection(configuration);
 
@@ -94,42 +96,42 @@ export class WebRTCService {
 
   private async handleMatchFound(peerId: string, initiateCall: boolean) {
     this.partnerId = peerId;
-    
-    try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        alert("Camera access is not supported here. Please ensure you are running on localhost or HTTPS.");
+
+    // If no stream yet, try to acquire it now
+    if (!this.localStream) {
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          alert("Camera access is not supported. Ensure you are on localhost or HTTPS.");
+          return;
+        }
+        this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        window.dispatchEvent(new CustomEvent('whychat_local_stream', { detail: { stream: this.localStream } }));
+      } catch (e: any) {
+        console.error("Camera permission denied or failed", e);
+        if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+          alert("Camera permission was denied. Please allow camera access and try again.");
+        } else if (e.name === 'NotFoundError') {
+          alert("No camera or microphone found.");
+        } else if (e.name === 'NotReadableError') {
+          alert("Your camera is already in use by another application.");
+        } else {
+          alert("Failed to access camera: " + (e.message || e.toString()));
+        }
         return;
       }
-      this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      window.dispatchEvent(new CustomEvent('whychat_local_stream', { detail: { stream: this.localStream } }));
-    } catch (e: any) {
-      console.error("Microphone/Camera permission denied or failed", e);
-      if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
-        alert("Camera permission was denied. Please allow camera access in your browser settings and try again.");
-      } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
-        alert("No camera or microphone found. Please connect a device and try again.");
-      } else if (e.name === 'NotReadableError' || e.name === 'TrackStartError') {
-        alert("Your camera is already in use by another application.");
-      } else {
-        alert("Failed to access camera: " + (e.message || e.toString()));
-      }
-      return;
     }
 
     const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
     this.peerConnection = new RTCPeerConnection(configuration);
 
-    // Attach local stream tracks
     this.localStream.getTracks().forEach(track => {
       if (this.localStream) this.peerConnection!.addTrack(track, this.localStream);
     });
 
-    // Handle remote stream
     this.peerConnection.ontrack = (event) => {
       window.dispatchEvent(new CustomEvent('whychat_remote_stream', { detail: { stream: event.streams[0] } }));
     };
 
-    // Handle ICE candidates
     this.peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
         signaling.send({
@@ -140,7 +142,6 @@ export class WebRTCService {
       }
     };
 
-    // Handle sudden disconnects
     this.peerConnection.onconnectionstatechange = () => {
       if (
         this.peerConnection?.connectionState === 'disconnected' ||
@@ -195,13 +196,11 @@ export class WebRTCService {
     }
   }
 
-  // --- Data Channel / Messaging ---
-
   private setupDataChannel() {
     if (!this.dataChannel) return;
-    
+
     this.dataChannel.binaryType = 'arraybuffer';
-    
+
     this.dataChannel.onopen = () => console.log('Data channel opened');
     this.dataChannel.onmessage = (event) => {
       if (typeof event.data === 'string') {
@@ -236,20 +235,19 @@ export class WebRTCService {
   private finalizeIncomingMedia() {
     const blob = new Blob(this.incomingMedia.chunks as BlobPart[], { type: this.incomingMedia.mimeType });
     const localUrl = URL.createObjectURL(blob);
-    
-    window.dispatchEvent(new CustomEvent('whychat_media_received', { 
-      detail: { 
-        url: localUrl, 
-        mimeType: this.incomingMedia.mimeType, 
+
+    window.dispatchEvent(new CustomEvent('whychat_media_received', {
+      detail: {
+        url: localUrl,
+        mimeType: this.incomingMedia.mimeType,
         name: this.incomingMedia.name,
         sender: this.partnerId
-      } 
+      }
     }));
-    
+
     this.incomingMedia = { chunks: [], mimeType: '', name: '', receiving: false };
   }
 
-  // File Sender Helper
   public async sendFile(file: File) {
     if (!this.dataChannel || this.dataChannel.readyState !== 'open') return;
 
@@ -258,13 +256,10 @@ export class WebRTCService {
     const arrayBuffer = await file.arrayBuffer();
     let offset = 0;
 
-    // Stream 16KB fragments
     while (offset < arrayBuffer.byteLength) {
       const slice = arrayBuffer.slice(offset, offset + this.CHUNK_SIZE);
       this.dataChannel.send(slice);
       offset += this.CHUNK_SIZE;
-      
-      // Optional: Add artificial delay if buffer fills up, though WebRTC usually handles it fine for reasonable files
     }
 
     this.dataChannel.send(JSON.stringify({ type: 'MEDIA_END' }));
