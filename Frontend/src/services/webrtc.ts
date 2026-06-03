@@ -140,6 +140,17 @@ export class WebRTCService {
       }
     };
 
+    // Handle sudden disconnects
+    this.peerConnection.onconnectionstatechange = () => {
+      if (
+        this.peerConnection?.connectionState === 'disconnected' ||
+        this.peerConnection?.connectionState === 'failed' ||
+        this.peerConnection?.connectionState === 'closed'
+      ) {
+        window.dispatchEvent(new Event('whychat_partner_left'));
+      }
+    };
+
     if (initiateCall) {
       this.dataChannel = this.peerConnection.createDataChannel('whychat_data');
       this.setupDataChannel();

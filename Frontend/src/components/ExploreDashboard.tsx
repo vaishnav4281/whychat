@@ -60,17 +60,22 @@ export function ExploreDashboard({ profile, session, onSessionChange, onLogout, 
     const handleConnected = () => {
       fetchExploreWithFilters();
     };
+    const handlePoolUpdate = () => {
+      fetchExploreWithFilters();
+    };
 
     window.addEventListener('whychat_storage_update', handleStorageUpdate);
     signaling.events.addEventListener('explore_data', handleExploreData as EventListener);
     signaling.events.addEventListener('global_metrics', handleMetrics as EventListener);
     signaling.events.addEventListener('connected', handleConnected);
+    signaling.events.addEventListener('pool_update', handlePoolUpdate as EventListener);
 
     return () => {
       window.removeEventListener('whychat_storage_update', handleStorageUpdate);
       signaling.events.removeEventListener('explore_data', handleExploreData as EventListener);
       signaling.events.removeEventListener('global_metrics', handleMetrics as EventListener);
       signaling.events.removeEventListener('connected', handleConnected);
+      signaling.events.removeEventListener('pool_update', handlePoolUpdate as EventListener);
     };
   }, []);
 

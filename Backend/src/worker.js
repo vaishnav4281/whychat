@@ -26,6 +26,12 @@ function broadcastMetrics() {
   }
 }
 
+function broadcastPoolUpdate() {
+  for (const client of clientsBySocket.values()) {
+    send(client, "pool_update", {});
+  }
+}
+
 function publicProfile(client) {
   return {
     ...(client.profile ?? {}),
@@ -102,6 +108,8 @@ function joinVideoQueue(client) {
 }
 
 function cleanup(client) {
+  if (client.cleanedUp) return;
+  client.cleanedUp = true;
   clearInterval(client.heartbeat);
   clientsBySocket.delete(client.socket);
   clientsById.delete(client.id);
@@ -113,7 +121,10 @@ function cleanup(client) {
     // Socket is already terminated
   }
 
-  broadcastMetrics();
+  setTimeout(() => {
+    broadcastMetrics();
+    broadcastPoolUpdate();
+  }, 0);
 }
 
 function handleMessage(client, raw) {
@@ -141,6 +152,7 @@ function handleMessage(client, raw) {
     }
     clientsById.set(client.id, client);
     broadcastMetrics();
+    broadcastPoolUpdate();
     return;
   }
 

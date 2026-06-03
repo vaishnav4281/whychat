@@ -8,6 +8,7 @@ type SignalEventMap = {
   'CHAT_INIT': CustomEvent<{ peerId: string; peerDetails: any }>;
   'FRIEND_REQ': CustomEvent<{ id: string; name: string }>;
   'FRIEND_ACCEPT': CustomEvent<{ peerId: string; peerDetails: any }>;
+  'pool_update': Event;
   'connected': Event;
   'disconnected': Event;
 };

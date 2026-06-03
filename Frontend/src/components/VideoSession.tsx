@@ -53,7 +53,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
       if (localRef.current) localRef.current.srcObject = null;
       if (remoteRef.current) remoteRef.current.srcObject = null;
     };
-
+    
     const onMatchFound = (e: CustomEvent<{ peerId: string; initiateCall: boolean; peer?: any }>) => {
       const matchedPeer = e.detail.peer ?? {
         id: e.detail.peerId,
@@ -149,13 +149,19 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
       StorageService.addChatMessage(peer.id, m);
     };
 
+    const onPartnerLeft = () => {
+      matchNext();
+    };
+
     signaling.events.addEventListener('FRIEND_ACCEPT', onFriendAccept as EventListener);
     window.addEventListener('whychat_text_received', handleTextRecv as EventListener);
+    window.addEventListener('whychat_partner_left', onPartnerLeft);
     return () => {
       signaling.events.removeEventListener('FRIEND_ACCEPT', onFriendAccept as EventListener);
       window.removeEventListener('whychat_text_received', handleTextRecv as EventListener);
+      window.removeEventListener('whychat_partner_left', onPartnerLeft);
     };
-  }, [peer]);
+  }, [peer, matchNext]);
 
   useEffect(() => {
     feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: "smooth" });
