@@ -26,10 +26,7 @@ function ChatRoute() {
   const [tab, setTab] = useState<Tab>("explore");
   const [openChat, setOpenChat] = useState<PeerUser | null>(null);
   const [online, setOnline] = useState(0);
-  const [totalVisits, setTotalVisits] = useState<number | undefined>(() => {
-    const saved = StorageService.getTotalVisits();
-    return saved > 0 ? saved : undefined;
-  });
+  const [totalVisits, setTotalVisits] = useState<number | undefined>(undefined);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -48,7 +45,6 @@ function ChatRoute() {
       setOnline(e.detail.online);
       if (e.detail.totalVisits !== undefined) {
         setTotalVisits(e.detail.totalVisits);
-        StorageService.setTotalVisits(e.detail.totalVisits);
       }
     };
     signaling.events.addEventListener('global_metrics', handleMetrics as EventListener);

@@ -155,14 +155,6 @@ export class StorageService {
   }
 
   // Chats
-  static getTotalVisits(): number {
-    return getItem<number>('whychat_total_visits', 0);
-  }
-
-  static setTotalVisits(n: number): void {
-    setItem('whychat_total_visits', n);
-  }
-
   static getChats(): Record<string, ChatRecord> {
     const raw = getItem<Record<string, any>>('whychat_chats', {});
     // Migrate old format (Record<string, ChatMessage[]>) to new ChatRecord format
