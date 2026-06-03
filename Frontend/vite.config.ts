@@ -13,7 +13,7 @@ export default defineConfig({
     },
   },
   nitro: {
-    preset: "vercel",
+    preset: "cloudflare-pages",
   },
   tanstackStart: {
     server: { entry: "server" },
