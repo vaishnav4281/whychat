@@ -1,7 +1,7 @@
-# WhyChat — Global Chat Platform
+# MeetWithStrangers — Global Chat Platform
 
 ## About
-WhyChat is a free, instant messaging platform to meet strangers from 150+ countries. Practice languages, make friends, and explore cultures — no signup required, no data stored on servers.
+MeetWithStrangers is a free, instant messaging platform to meet strangers from 150+ countries. Practice languages, make friends, and explore cultures — no signup required, no data stored on servers.
 
 ## Key Features
 - Instant matching with people worldwide

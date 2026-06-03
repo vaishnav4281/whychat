@@ -12,8 +12,8 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
-const SITE_TITLE = "WhyChat — Connect with Strangers Worldwide";
-const SITE_DESC = "WhyChat is a free global chat platform to meet strangers, make friends, practice languages, and discover cultures through real-time messaging. Connect instantly with people from 150+ countries.";
+const SITE_TITLE = "MeetWithStrangers — Connect with Strangers Worldwide";
+const SITE_DESC = "MeetWithStrangers is a free global chat platform to meet strangers, make friends, practice languages, and discover cultures through real-time messaging. Connect instantly with people from 150+ countries.";
 
 function NotFoundComponent() {
   return (
@@ -83,7 +83,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: SITE_TITLE },
       { name: "description", content: SITE_DESC },
       { name: "keywords", content: "chat with strangers, online chat, global chat, language exchange, meet new people, free chat app, anonymous chat, video chat alternative, text chat, make friends online, why chat" },
-      { name: "author", content: "WhyChat" },
+      { name: "author", content: "MeetWithStrangers" },
       { name: "google-site-verification", content: "xQlFT77K7626uxRB2b7tVAyHm1rNm6-e4Am2lcXey4Y" },
       { name: "robots", content: "index, follow" },
       { name: "googlebot", content: "index, follow" },
@@ -91,7 +91,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:description", content: SITE_DESC },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://whychat.pages.dev" },
-      { property: "og:site_name", content: "WhyChat" },
+      { property: "og:site_name", content: "MeetWithStrangers" },
       { property: "og:locale", content: "en_US" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: SITE_TITLE },
