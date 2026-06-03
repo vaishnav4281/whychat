@@ -6,6 +6,7 @@ interface Props {
   profile: UserProfile;
   onLogout: () => void;
   online?: number;
+  totalVisits?: number;
 }
 
 export function TopNav({ profile, onLogout, online = 0 }: Props) {
@@ -25,6 +26,12 @@ export function TopNav({ profile, onLogout, online = 0 }: Props) {
             <span className="text-xs font-semibold tabular-nums">{online.toLocaleString()}</span>
             <span className="tag-premium !text-[10px] hidden md:inline">live</span>
           </div>
+          {totalVisits !== undefined && (
+            <div className="surface-soft flex items-center gap-1.5 px-3 py-1.5">
+              <span className="text-xs font-semibold tabular-nums">{totalVisits.toLocaleString()}</span>
+              <span className="tag-premium !text-[10px] hidden md:inline">visits</span>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <img src={profile.avatar} alt="" className="w-8 md:w-9 h-8 md:h-9 rounded-full ring-2 ring-[#D8D0F5]" />
             <div className="hidden sm:block leading-tight">

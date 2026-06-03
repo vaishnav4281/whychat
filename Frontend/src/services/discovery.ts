@@ -24,11 +24,7 @@ export class DiscoveryService {
         detail: { text: e.detail.text, sender: e.detail.from }
       }));
     }) as EventListener);
-    signaling.events.addEventListener('global_metrics', ((e: CustomEvent<{ online: number; totalVisits?: number }>) => {
-      if (e.detail.totalVisits !== undefined) {
-        console.log(`[WhyChat] Total accounts created: ${e.detail.totalVisits}`);
-      }
-    }) as EventListener);
+
   }
 
   public fetchExplore(filters: { gender?: string; country?: string; language?: string }) {

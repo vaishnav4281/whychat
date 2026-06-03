@@ -26,6 +26,7 @@ function ChatRoute() {
   const [tab, setTab] = useState<Tab>("explore");
   const [openChat, setOpenChat] = useState<PeerUser | null>(null);
   const [online, setOnline] = useState(0);
+  const [totalVisits, setTotalVisits] = useState<number | undefined>(undefined);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -40,7 +41,10 @@ function ChatRoute() {
 
   useEffect(() => {
     if (!profile) return;
-    const handleMetrics = (e: CustomEvent<{ online: number }>) => setOnline(e.detail.online);
+    const handleMetrics = (e: CustomEvent<{ online: number; totalVisits?: number }>) => {
+      setOnline(e.detail.online);
+      if (e.detail.totalVisits !== undefined) setTotalVisits(e.detail.totalVisits);
+    };
     signaling.events.addEventListener('global_metrics', handleMetrics as EventListener);
     signaling.connect();
     const onRouteChat = (e: CustomEvent<{ peerId: string; peerDetails?: Partial<PeerUser> }>) => {
@@ -86,7 +90,7 @@ function ChatRoute() {
 
   return (
     <>
-      <TopNav profile={profile} onLogout={() => { StorageService.clearProfile(); navigate({ to: '/' }); }} online={online} />
+      <TopNav profile={profile} onLogout={() => { StorageService.clearProfile(); navigate({ to: '/' }); }} online={online} totalVisits={totalVisits} />
       <main className="flex-1 flex flex-col overflow-hidden">
         <div className={tab !== "explore" ? "hidden" : "flex-1 overflow-y-auto pb-20"}>
           <ExploreDashboard onOpenChat={goChat} />
