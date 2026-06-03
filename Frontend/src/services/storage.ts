@@ -90,8 +90,13 @@ export class StorageService {
 
   static clearProfile(): void {
     try {
-      localStorage.removeItem('whychat_profile');
-      localStorage.removeItem('peer_profile');
+      const keys = Object.keys(localStorage);
+      for (const key of keys) {
+        if (key.startsWith('whychat_') || key === 'peer_profile') {
+          localStorage.removeItem(key);
+        }
+      }
+      cache.clear();
       window.dispatchEvent(new CustomEvent('whychat_storage_update', { detail: { key: 'whychat_profile', value: null } }));
     } catch { /* ignore */ }
   }

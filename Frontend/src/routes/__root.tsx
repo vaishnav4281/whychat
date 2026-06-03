@@ -84,6 +84,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: SITE_DESC },
       { name: "keywords", content: "chat with strangers, online chat, global chat, language exchange, meet new people, free chat app, anonymous chat, video chat alternative, text chat, make friends online, why chat" },
       { name: "author", content: "WhyChat" },
+      { name: "google-site-verification", content: "xQlFT77K7626uxRB2b7tVAyHm1rNm6-e4Am2lcXey4Y" },
       { name: "robots", content: "index, follow" },
       { name: "googlebot", content: "index, follow" },
       { property: "og:title", content: SITE_TITLE },
