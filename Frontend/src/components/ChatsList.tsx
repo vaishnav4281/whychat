@@ -39,12 +39,12 @@ export function ChatsList({ onOpenChat }: Props) {
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-2 mb-1">
           <Sparkles className="w-4 h-4 text-primary" />
-          <span className="meta-label">Inbox</span>
+          <span className="tag-apple">Inbox</span>
         </div>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-5 md:mb-6">Your chats</h1>
 
         {friends.length === 0 ? (
-          <div className="glass rounded-3xl p-8 md:p-10 text-center">
+          <div className="card-apple p-8 md:p-10 text-center">
             <div className="text-sm text-muted-foreground">
               No conversations yet. Match someone in Video to start chatting.
             </div>
@@ -56,15 +56,15 @@ export function ChatsList({ onOpenChat }: Props) {
 
               return (
                 <button key={f.id} onClick={() => onOpenChat({ ...f, nickname: f.name, gender: 'M', languages: [], online: true } as PeerUser)}
-                  className="w-full glass rounded-2xl md:rounded-3xl p-3.5 md:p-4 flex items-center gap-3 hover:bg-white/[0.06] transition text-left">
+                  className="w-full card-apple-hover p-3.5 md:p-4 flex items-center gap-3 text-left">
                   <div className="relative shrink-0">
-                    <img src={f.avatar} alt="" className="w-11 h-11 md:w-12 md:h-12 rounded-2xl bg-white/[0.06]" />
-                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 ring-2 ring-[var(--card)]" />
+                    <img src={f.avatar} alt="" className="w-11 h-11 md:w-12 md:h-12 rounded-2xl bg-secondary" />
+                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 ring-2 ring-card" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-sm md:text-base">{f.name}</span>
-                      <span className="meta-label !text-[10px]">{flagFor(f.country)} {f.country}</span>
+                      <span className="tag-apple !text-[10px]">{flagFor(f.country)} {f.country}</span>
                     </div>
                     <div className="text-sm text-muted-foreground truncate">{preview}</div>
                   </div>

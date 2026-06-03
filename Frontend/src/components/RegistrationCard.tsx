@@ -39,45 +39,43 @@ export function RegistrationCard({ onComplete }: Props) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 md:p-6">
+    <div className="min-h-screen flex items-center justify-center p-6">
       <form
         onSubmit={submit}
-        className="glass-card rounded-3xl p-8 md:p-10 w-full max-w-xl animate-in"
+        className="card-apple p-8 md:p-10 w-full max-w-xl animate-in"
       >
         <div className="flex items-center gap-2 mb-1">
           <Sparkles className="w-4 h-4 text-primary" />
-          <span className="meta-label">Step 01 · Identity</span>
+          <span className="tag-apple">Step 01 · Identity</span>
         </div>
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">
-          Forge your <span className="text-gradient-premium">presence</span>.
+        <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2 text-balance">
+          Forge your presence.
         </h1>
         <p className="text-sm text-muted-foreground mb-8">
           Crafted instantly. Stored on your device only.
         </p>
 
-        {/* Nickname */}
         <label className="block mb-5">
-          <span className="meta-label flex items-center gap-1.5 mb-2">
+          <span className="tag-apple flex items-center gap-1.5 mb-2">
             <User2 className="w-3 h-3" /> Nickname
           </span>
           <input
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
             placeholder="luna"
-            className="premium-input"
+            className="input-apple"
             required
           />
         </label>
 
-        {/* Country */}
         <label className="block mb-5">
-          <span className="meta-label flex items-center gap-1.5 mb-2">
+          <span className="tag-apple flex items-center gap-1.5 mb-2">
             <Globe2 className="w-3 h-3" /> Country
           </span>
           <select
             value={country}
             onChange={(e) => setCountry(e.target.value)}
-            className="premium-select"
+            className="select-apple"
           >
             {COUNTRIES.map((c) => (
               <option key={c.name} value={c.name}>
@@ -87,20 +85,15 @@ export function RegistrationCard({ onComplete }: Props) {
           </select>
         </label>
 
-        {/* Gender capsule switch */}
         <div className="mb-5">
-          <span className="meta-label block mb-2">Gender</span>
-          <div className="glass-strong inline-flex rounded-full p-1">
+          <span className="tag-apple block mb-2">Gender</span>
+          <div className="pill-apple inline-flex">
             {(["F", "M"] as Gender[]).map((g) => (
               <button
                 key={g}
                 type="button"
                 onClick={() => setGender(g)}
-                className={`px-5 md:px-6 py-2 text-sm font-semibold rounded-full transition-all duration-300 ${
-                  gender === g
-                    ? "gradient-premium text-white shadow-lg scale-105"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className={`pill-apple-item ${gender === g ? "active" : ""}`}
               >
                 {g === "F" ? "Female" : "Male"}
               </button>
@@ -108,9 +101,8 @@ export function RegistrationCard({ onComplete }: Props) {
           </div>
         </div>
 
-        {/* Languages */}
         <div className="mb-8">
-          <span className="meta-label flex items-center gap-1.5 mb-2">
+          <span className="tag-apple flex items-center gap-1.5 mb-2">
             <Languages className="w-3 h-3" /> Languages · tap to add
           </span>
           <div className="flex flex-wrap gap-1.5">
@@ -123,12 +115,11 @@ export function RegistrationCard({ onComplete }: Props) {
                   onClick={() => toggleLang(l)}
                   className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all duration-200 ${
                     active
-                      ? "gradient-premium text-white border-transparent shadow-sm"
-                      : "bg-white/[0.06] border-white/[0.1] text-foreground hover:bg-white/[0.1] hover:scale-105"
+                      ? "bg-foreground text-background border-foreground"
+                      : "bg-secondary text-foreground border-transparent hover:bg-muted"
                   }`}
                 >
-                  {active && <span className="inline mr-0.5">✓</span>}
-                  {l}
+                  {active ? "✓" : ""}{l}
                 </button>
               );
             })}
@@ -137,7 +128,7 @@ export function RegistrationCard({ onComplete }: Props) {
 
         <button
           type="submit"
-          className="w-full gradient-premium text-white font-semibold py-4 rounded-2xl shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-transform glow-purple"
+          className="btn-primary w-full py-3.5 text-center"
         >
           Enter the Hub →
         </button>

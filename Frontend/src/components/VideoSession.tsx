@@ -171,7 +171,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
 
   const sendRequest = () => {
     if (!peer) return;
-    discovery.sendFriendRequest(peer.id);
+    discovery.sendFriendRequest(String(peer.id));
     setRequested(true);
   };
   
@@ -192,30 +192,29 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
   const fmt = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
-  // ── Idle landing ───────────────────────────────────────────────────────────
   if (phase === "idle") {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 md:px-6">
-        <div className="glass-card rounded-3xl max-w-xl w-full p-8 md:p-10 text-center animate-in relative">
-          <button onClick={onBack} className="absolute top-5 left-5 glass rounded-full px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 hover:bg-white/[0.12] transition">
+      <div className="min-h-screen flex items-center justify-center px-6">
+        <div className="card-apple p-8 md:p-10 max-w-xl w-full text-center animate-in relative">
+          <button onClick={onBack} className="btn-ghost absolute top-5 left-5 flex items-center gap-1.5">
             <ArrowLeft className="w-3.5 h-3.5" /> Back
           </button>
-          <div className="w-16 h-16 rounded-3xl gradient-premium mx-auto mb-5 flex items-center justify-center shadow-lg glow-purple">
-            <VideoIcon className="w-7 h-7 text-white" />
+          <div className="w-16 h-16 rounded-2xl bg-foreground mx-auto mb-5 flex items-center justify-center">
+            <VideoIcon className="w-7 h-7 text-background" />
           </div>
-          <div className="meta-label mb-1">Live Pool</div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-2">
-            Meet a <span className="text-gradient-premium">stranger</span>.
+          <div className="tag-apple mb-1">Live Pool</div>
+          <h1 className="text-3xl font-bold tracking-tight mb-2 text-balance">
+            Meet a stranger.
           </h1>
           <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-            Get paired with someone active in the pool right now. Send a friend request if you vibe — chat unlocks instantly.
+            Get paired with someone active in the pool right now.
           </p>
           <div className="flex items-center justify-center gap-2 mb-6">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse-dot" />
+            <span className="w-2 h-2 rounded-full bg-green-500" />
             <span className="text-xs font-semibold">{online.toLocaleString()} strangers online</span>
           </div>
           <button onClick={enterPool}
-            className="gradient-premium text-white font-semibold px-8 py-4 rounded-2xl shadow-lg hover:scale-[1.02] active:scale-[0.99] transition inline-flex items-center gap-2 glow-purple">
+            className="btn-primary inline-flex items-center gap-2 px-8 py-3.5">
             <Sparkles className="w-4 h-4" /> Start Matching
           </button>
         </div>
@@ -223,24 +222,23 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
     );
   }
 
-  // ── Ended ──────────────────────────────────────────────────────────────────
   if (phase === "ended") {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 md:px-6">
-        <div className="glass-card rounded-3xl max-w-md w-full p-8 text-center animate-in">
-          <div className="meta-label mb-2">Call Ended</div>
+      <div className="min-h-screen flex items-center justify-center px-6">
+        <div className="card-apple p-8 max-w-md w-full text-center animate-in">
+          <div className="tag-apple mb-2">Call Ended</div>
           <h2 className="text-2xl font-bold mb-6">What next?</h2>
           <div className="grid gap-2">
             <button onClick={matchNext}
-              className="gradient-premium text-white font-semibold py-3 rounded-2xl hover:scale-[1.01] transition inline-flex items-center justify-center gap-2 glow-purple">
+              className="btn-primary inline-flex items-center justify-center gap-2 py-3">
               <SkipForward className="w-4 h-4" /> Match Again
             </button>
             <button onClick={onGoExplore}
-              className="bg-white/[0.06] border border-white/[0.1] text-foreground font-semibold py-3 rounded-2xl hover:bg-white/[0.1] hover:scale-[1.01] transition inline-flex items-center justify-center gap-2">
+              className="btn-secondary inline-flex items-center justify-center gap-2 py-3">
               <Compass className="w-4 h-4" /> Explore
             </button>
             <button onClick={onBack}
-              className="text-sm text-muted-foreground py-2 inline-flex items-center justify-center gap-2 hover:text-foreground transition">
+              className="btn-ghost inline-flex items-center justify-center gap-2">
               <MessagesSquare className="w-4 h-4" /> Back to Chats
             </button>
           </div>
@@ -249,20 +247,16 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
     );
   }
 
-  // ── Live / Searching ───────────────────────────────────────────────────────
   const isSearching = phase === "searching" || !peer;
   return (
-    <div className="fixed inset-0 z-40 p-0 md:p-6 bg-black/60 backdrop-blur-md flex items-center justify-center">
-      <div className="relative w-full h-full md:h-[calc(100vh-3rem)] md:rounded-[2rem] overflow-hidden bg-neutral-950 shadow-2xl md:max-w-[calc(100vw-3rem)]">
-        {/* Remote Video Background */}
+    <div className="fixed inset-0 z-40 p-0 md:p-6 bg-black/60 flex items-center justify-center">
+      <div className="relative w-full h-full md:h-[calc(100vh-3rem)] md:rounded-[2rem] overflow-hidden bg-neutral-900 shadow-2xl md:max-w-[calc(100vw-3rem)]">
         <video ref={remoteRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover z-0" />
         
-        <div className="absolute inset-0 z-10 flex items-center justify-center" style={{
-          background: "radial-gradient(circle at 30% 30%, rgba(139,92,246,0.15) 0%, transparent 50%), radial-gradient(circle at 70% 70%, rgba(236,72,153,0.12) 0%, transparent 50%)",
-        }}>
+        <div className="absolute inset-0 z-10 flex items-center justify-center">
           {isSearching && (
-            <div className="text-center bg-black/70 p-8 md:p-10 rounded-3xl backdrop-blur-xl border border-white/[0.06]">
-              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full mx-auto mb-6 gradient-premium animate-glow-pulse" />
+            <div className="text-center bg-black/70 p-8 md:p-10 rounded-2xl">
+              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full mx-auto mb-6 bg-white/20" />
               <div className="text-white text-xl md:text-2xl font-bold tracking-tight">Searching the pool…</div>
               <div className="text-white/50 text-xs mt-2 uppercase tracking-widest">Pairing with a stranger</div>
             </div>
@@ -270,50 +264,44 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
           
           {!isSearching && (
             <div className="text-center absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ opacity: remoteRef.current?.srcObject ? 0 : 1 }}>
-              <div className="gradient-border rounded-3xl mb-6">
-                <img src={peer.avatar} alt={peer.nickname}
-                  className="w-32 h-32 md:w-40 md:h-40 rounded-3xl bg-white/[0.06]" />
-              </div>
-              <div className="text-white text-2xl md:text-3xl font-bold tracking-tight drop-shadow-lg">{peer.nickname}</div>
+              <img src={String(peer?.avatar ?? "")} alt={String(peer?.nickname ?? "")}
+                className="w-32 h-32 md:w-40 md:h-40 rounded-2xl mb-6 ring-2 ring-white/20 bg-white/10" />
+              <div className="text-white text-2xl md:text-3xl font-bold tracking-tight drop-shadow-lg">{String(peer?.nickname ?? "")}</div>
               <div className="text-white/80 text-sm mt-1 uppercase tracking-widest drop-shadow-md font-semibold">
-                {flagFor(peer.country)} {peer.country} · {peer.languages.join(" · ")}
+                {flagFor(String(peer?.country ?? ""))} {String(peer?.country ?? "")}
               </div>
             </div>
           )}
         </div>
 
-        {/* Top bar */}
         <div className="absolute top-0 left-0 right-0 p-3 md:p-4 flex items-center justify-between z-20 bg-gradient-to-b from-black/60 to-transparent">
           <button onClick={() => { endCall(); onBack(); }}
-            className="glass rounded-full px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 hover:bg-white/[0.12] transition">
+            className="bg-white/20 backdrop-blur-md rounded-full px-3 py-1.5 text-xs font-semibold text-white flex items-center gap-1.5 hover:bg-white/30 transition">
             <ArrowLeft className="w-3.5 h-3.5" /> Exit
           </button>
-          <div className="glass rounded-full px-3 py-1.5 flex items-center gap-2 text-xs font-semibold">
-            <span className={`w-2 h-2 rounded-full ${isSearching ? "bg-amber-400" : "bg-red-500"} animate-pulse-dot`} />
+          <div className="bg-white/20 backdrop-blur-md rounded-full px-3 py-1.5 flex items-center gap-2 text-xs font-semibold text-white">
+            <span className={`w-2 h-2 rounded-full ${isSearching ? "bg-amber-400" : "bg-red-500"}`} />
             {isSearching ? "MATCHING" : `LIVE · ${fmt(seconds)}`}
           </div>
         </div>
 
-        {/* PiP local preview */}
         <div className="absolute top-14 right-3 md:top-16 md:right-4 w-32 h-24 md:w-48 md:h-36 rounded-2xl overflow-hidden ring-2 ring-white/20 shadow-2xl bg-black z-20">
           <video ref={localRef} autoPlay muted playsInline className="w-full h-full object-cover" />
           <div className="absolute bottom-1 left-2 text-[10px] uppercase tracking-widest text-white/80 font-semibold drop-shadow-md">You</div>
         </div>
 
-        {/* Accepted toast */}
         {accepted && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 glass-strong rounded-3xl px-8 py-6 text-center animate-in z-30 pointer-events-none">
-            <div className="w-14 h-14 rounded-full gradient-premium flex items-center justify-center mx-auto mb-3 glow-purple">
-              <Check className="w-7 h-7 text-white" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-md rounded-2xl px-8 py-6 text-center animate-in z-30 pointer-events-none">
+            <div className="w-14 h-14 rounded-full bg-foreground flex items-center justify-center mx-auto mb-3">
+              <Check className="w-7 h-7 text-background" />
             </div>
-            <div className="font-bold text-lg">You're now friends</div>
+            <div className="font-bold text-lg text-foreground">You're now friends</div>
             <div className="text-xs text-muted-foreground mt-1">Chat history is now saved</div>
           </div>
         )}
 
-        {/* Live Chat Overlay */}
         {!isSearching && (
-          <div className="absolute bottom-24 left-3 md:left-6 right-3 md:right-auto md:w-96 rounded-2xl md:rounded-3xl flex flex-col z-30 h-64 md:h-72 overflow-hidden pointer-events-auto bg-black/50 border border-white/[0.08] backdrop-blur-xl animate-in shadow-2xl">
+          <div className="absolute bottom-24 left-3 md:left-6 right-3 md:right-auto md:w-96 rounded-2xl md:rounded-3xl flex flex-col z-30 h-64 md:h-72 overflow-hidden pointer-events-auto bg-black/50 border border-white/10 backdrop-blur-xl animate-in shadow-2xl">
             <div ref={feedRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
               {messages.length === 0 && (
                 <div className="text-center text-xs text-white/40 py-4 font-semibold uppercase tracking-widest">
@@ -324,15 +312,19 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
                 const mine = m.senderId === "me";
                 return (
                   <div key={m.ts.toString() + m.content.length} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm shadow-sm ${mine ? "gradient-premium text-white rounded-br-sm" : "bg-white/[0.12] text-white rounded-bl-sm backdrop-blur-sm"}`}>
+                    <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
+                      mine
+                        ? "bg-white text-foreground rounded-br-sm"
+                        : "bg-white/20 text-white rounded-bl-sm"
+                    }`}>
                       <span className="whitespace-pre-wrap break-words">{m.content}</span>
                     </div>
                   </div>
                 );
               })}
             </div>
-            <div className="px-3 py-3 border-t border-white/[0.08] bg-black/40">
-              <div className="bg-white/[0.06] rounded-full px-3 py-1.5 flex items-center gap-2">
+            <div className="px-3 py-3 border-t border-white/10 bg-black/40">
+              <div className="bg-white/10 rounded-full px-3 py-1.5 flex items-center gap-2">
                 <input
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
@@ -342,7 +334,7 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
                   maxLength={200}
                 />
                 <button onClick={sendChat}
-                  className="w-8 h-8 rounded-full gradient-premium text-white flex items-center justify-center hover:scale-105 transition shrink-0">
+                  className="w-8 h-8 rounded-full bg-white text-foreground flex items-center justify-center hover:opacity-80 transition shrink-0">
                   <Send className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -350,18 +342,17 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
           </div>
         )}
 
-        {/* Control strip */}
         <div className="absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-20 w-[calc(100%-1.5rem)] md:w-auto">
-          <div className="glass-strong rounded-full p-2 flex items-center justify-center gap-1.5 md:gap-2">
+          <div className="bg-white/20 backdrop-blur-md rounded-full p-2 flex items-center justify-center gap-1.5 md:gap-2">
             <button
               onClick={sendRequest}
               disabled={requested || isSearching}
-              className={`px-3 md:px-5 py-2.5 md:py-3 rounded-full text-xs md:text-sm font-semibold flex items-center gap-1.5 md:gap-2 transition-all ${
+              className={`px-3 md:px-5 py-2.5 md:py-3 rounded-full text-xs md:text-sm font-semibold flex items-center gap-1.5 md:gap-2 transition ${
                 requested
-                  ? "bg-green-500/90 text-white"
+                  ? "bg-green-500 text-white"
                   : isSearching
-                  ? "bg-white/[0.06] text-white/40 cursor-not-allowed"
-                  : "gradient-premium text-white hover:scale-105"
+                  ? "bg-white/20 text-white/40 cursor-not-allowed"
+                  : "bg-white text-foreground hover:opacity-80"
               }`}
             >
               {requested ? <><Check className="w-4 h-4" /> Sent</> : <><UserPlus className="w-4 h-4" /> Add Friend</>}
@@ -370,14 +361,14 @@ export function VideoSession({ profile, onBack, onOpenChat, onGoExplore }: Props
               onClick={skipCall}
               disabled={isSearching}
               className={`px-3 md:px-5 py-2.5 md:py-3 rounded-full text-xs md:text-sm font-semibold flex items-center gap-1.5 md:gap-2 transition ${
-                isSearching ? "bg-white/[0.06] text-white/40 cursor-not-allowed" : "bg-white/90 text-neutral-900 hover:bg-white hover:scale-105"
+                isSearching ? "bg-white/20 text-white/40 cursor-not-allowed" : "bg-white text-foreground hover:opacity-80"
               }`}
             >
               <SkipForward className="w-4 h-4" /> Skip
             </button>
             <button
               onClick={endCall}
-              className="px-3 md:px-5 py-2.5 md:py-3 rounded-full bg-red-500 text-white text-xs md:text-sm font-semibold flex items-center gap-1.5 md:gap-2 hover:bg-red-400 hover:scale-105 transition"
+              className="px-3 md:px-5 py-2.5 md:py-3 rounded-full bg-red-500 text-white text-xs md:text-sm font-semibold flex items-center gap-1.5 md:gap-2 hover:opacity-80 transition"
             >
               <PhoneOff className="w-4 h-4" /> End
             </button>
