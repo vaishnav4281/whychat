@@ -36,6 +36,7 @@ export interface ChatMessage {
 
 export interface ChatRecord {
   name: string;
+  avatar?: string;
   lastMessage: string;
   startedBy?: string;
   iHaveReplied: boolean;
@@ -180,11 +181,12 @@ export class StorageService {
     return chats[peerId]?.messages || [];
   }
 
-  static saveChatPlaceholder(peerId: string, name: string, startedBy?: string): void {
+  static saveChatPlaceholder(peerId: string, name: string, avatar?: string, startedBy?: string): void {
     const chats = StorageService.getChats();
     if (!chats[peerId]) {
       chats[peerId] = {
         name,
+        avatar,
         lastMessage: '',
         startedBy,
         iHaveReplied: false,

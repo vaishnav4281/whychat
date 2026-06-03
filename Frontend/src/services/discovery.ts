@@ -50,6 +50,7 @@ export class DiscoveryService {
     StorageService.saveChatPlaceholder(
       targetId,
       targetDetails?.name || targetDetails?.nickname || 'Stranger',
+      targetDetails?.avatar,
       localProfile?.id
     );
 
@@ -90,7 +91,7 @@ export class DiscoveryService {
         webrtc.establishDataConnection(peerId, false);
         const chats = StorageService.getChats();
         if (!chats[peerId]) {
-          StorageService.saveChatPlaceholder(peerId, peerDetails?.name || peerDetails?.nickname || 'Stranger', peerId);
+          StorageService.saveChatPlaceholder(peerId, peerDetails?.name || peerDetails?.nickname || 'Stranger', peerDetails?.avatar, peerId);
         }
       }
     }

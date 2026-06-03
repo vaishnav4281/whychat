@@ -61,8 +61,12 @@ export function ChatsList({ onOpenChat }: Props) {
                     onClick={() => onOpenChat({ id: peerId, nickname: record.name, name: record.name, gender: 'M', languages: [], country: 'Unknown', avatar: '', online: false, isBot: false })}
                     className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 cursor-pointer transition"
                   >
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#EC4899] flex items-center justify-center text-white font-bold text-sm shrink-0">
-                      {record.name?.charAt(0)?.toUpperCase() || '?'}
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#EC4899] flex items-center justify-center text-white font-bold text-sm shrink-0 overflow-hidden">
+                      {record.avatar ? (
+                        <img src={record.avatar} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{record.name?.charAt(0)?.toUpperCase() || '?'}</span>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-sm truncate">{record.name || 'Stranger'}</div>
@@ -80,11 +84,15 @@ export function ChatsList({ onOpenChat }: Props) {
                 {general.map(([peerId, record]) => (
                   <div
                     key={peerId}
-                    onClick={() => onOpenChat({ id: peerId, nickname: record.name, name: record.name, gender: 'M', languages: [], country: 'Unknown', avatar: '', online: false, isBot: false })}
+                    onClick={() => onOpenChat({ id: peerId, nickname: record.name, name: record.name, gender: 'M', languages: [], country: 'Unknown', avatar: record.avatar || '', online: false, isBot: false })}
                     className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 cursor-pointer transition"
                   >
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#EC4899] flex items-center justify-center text-white font-bold text-sm shrink-0">
-                      {record.name?.charAt(0)?.toUpperCase() || '?'}
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#EC4899] flex items-center justify-center text-white font-bold text-sm shrink-0 overflow-hidden">
+                      {record.avatar ? (
+                        <img src={record.avatar} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{record.name?.charAt(0)?.toUpperCase() || '?'}</span>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-sm truncate">{record.name || 'Stranger'}</div>
