@@ -12,7 +12,7 @@ class_name = "SwitchboardDO"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["SwitchboardDO"]
+new_sqlite_classes = ["SwitchboardDO"]
 
 [observability]
 enabled = true
