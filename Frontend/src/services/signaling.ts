@@ -20,15 +20,6 @@ export interface SignalingEventTarget extends EventTarget {
   removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
 }
 
-function delay(ms: number) { return new Promise(r => setTimeout(r, ms)); }
-
-const MOCK_COUNTRIES = ['United States', 'Japan', 'Brazil', 'Germany', 'India', 'France', 'Korea', 'United Kingdom'];
-const MOCK_LANGS = ['English', 'Spanish', 'Japanese', 'Portuguese', 'German', 'French', 'Korean'];
-const MOCK_NAMES = [
-  'alex', 'maya', 'jordan', 'sam', 'riley', 'taylor', 'casey', 'jessie',
-  'quinn', 'avery', 'blake', 'drew', 'ellis', 'finley', 'harper', 'indigo',
-];
-
 export class SignalingService {
   private static instance: SignalingService;
   private ws: WebSocket | null = null;
@@ -37,15 +28,12 @@ export class SignalingService {
   private reconnectInterval = 5000;
   private connectPromise: Promise<void> | null = null;
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
-  private demoMode = false;
   private connected = false;
-  private mockInterval: ReturnType<typeof setInterval> | null = null;
 
   private constructor() {}
 
-  /** Returns true when the service can handle requests (connected or in demo mode). */
   public isReady(): boolean {
-    return this.demoMode || this.ws?.readyState === WebSocket.OPEN;
+    return this.ws?.readyState === WebSocket.OPEN;
   }
 
   public static getInstance(): SignalingService {
@@ -60,9 +48,8 @@ export class SignalingService {
       this.url = url;
     }
 
-    // If no URL configured, go straight to demo mode
     if (!this.url) {
-      return this.enterDemoMode();
+      return Promise.resolve();
     }
 
     if (this.ws?.readyState === WebSocket.OPEN) return Promise.resolve();
@@ -73,7 +60,6 @@ export class SignalingService {
         this.ws = new WebSocket(this.url);
 
         const connectionTimeout = setTimeout(() => {
-          // Connection took too long — fall back to demo mode
           if (this.ws) {
             this.ws.onopen = null;
             this.ws.onclose = null;
@@ -84,7 +70,7 @@ export class SignalingService {
           }
           this.ws = null;
           this.connectPromise = null;
-          resolve(this.enterDemoMode());
+          resolve();
         }, 8000);
 
         this.ws.onopen = () => {
@@ -105,7 +91,6 @@ export class SignalingService {
         };
 
         this.ws.onclose = () => {
-          const wasConnected = this.connected;
           this.connected = false;
           this.events.dispatchEvent(new Event('disconnected'));
           this.ws = null;
@@ -114,77 +99,16 @@ export class SignalingService {
             clearInterval(this.heartbeatInterval);
             this.heartbeatInterval = null;
           }
-          // Fall back to demo mode so the app stays usable
-          if (wasConnected) {
-            this.enterDemoMode();
-          }
         };
 
-        this.ws.onerror = () => {
-          // Error alone doesn't mean we're disconnected — onclose will fire next
-        };
+        this.ws.onerror = () => {};
       } catch {
-        // WebSocket constructor threw — go to demo mode
         this.connectPromise = null;
-        resolve(this.enterDemoMode());
+        resolve();
       }
     });
 
     return this.connectPromise;
-  }
-
-  private async enterDemoMode(): Promise<void> {
-    if (this.demoMode) return;
-    this.demoMode = true;
-    console.log('WhyChat: running in demo mode (no signaling server)');
-
-    // Yield so callers can register their event listeners first
-    await new Promise(r => setTimeout(r, 0));
-
-    this.events.dispatchEvent(new Event('connected'));
-    this.joinPool();
-
-    // Dispatch explore + metrics every 7 seconds
-    const dispatchAll = () => {
-      this.dispatchMockExplore();
-      this.dispatchMockMetrics();
-    };
-    this.mockInterval = setInterval(dispatchAll, 7000);
-
-    // Immediate mock data
-    dispatchAll();
-  }
-
-  private dispatchMockMetrics() {
-    this.events.dispatchEvent(new CustomEvent('global_metrics', {
-      detail: { online: 142 + Math.floor(Math.random() * 60) }
-    }));
-  }
-
-  private mockPeer(index: number) {
-    const name = MOCK_NAMES[index % MOCK_NAMES.length] + (index > 15 ? `_${index}` : '');
-    const country = MOCK_COUNTRIES[index % MOCK_COUNTRIES.length];
-    const langs = [MOCK_LANGS[index % MOCK_LANGS.length], 'English'];
-    const gender = index % 2 === 0 ? 'F' : 'M';
-    const seed = encodeURIComponent(name);
-    return {
-      id: `demo_${index}`,
-      name,
-      nickname: name,
-      country,
-      languages: langs,
-      gender,
-      avatar: `https://api.dicebear.com/7.x/${gender === 'F' ? 'adventurer' : 'bottts'}/svg?seed=${seed}`,
-    };
-  }
-
-  private dispatchMockExplore() {
-    const profile = StorageService.getProfile();
-    const count = 8 + Math.floor(Math.random() * 12);
-    const peers = Array.from({ length: count }, (_, i) => this.mockPeer(Date.now() % 1000 + i));
-    // Remove self if in list
-    const filtered = profile ? peers.filter(p => p.id !== profile.id) : peers;
-    this.events.dispatchEvent(new CustomEvent('explore_data', { detail: filtered }));
   }
 
   private static ALLOWED_EVENTS = new Set([
@@ -208,70 +132,10 @@ export class SignalingService {
   }
 
   public send(payload: any) {
-    // In demo mode, handle locally
-    if (this.demoMode) {
-      this.handleDemoPayload(payload);
-      return;
-    }
-
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(payload));
     } else {
       console.warn("WebSocket is not open. Payload not sent:", payload.type);
-    }
-  }
-
-  private async handleDemoPayload(payload: any) {
-    if (payload.type === 'pong') return;
-
-    if (payload.type === 'fetch_explore') {
-      this.dispatchMockExplore();
-      return;
-    }
-
-    if (payload.type === 'join_video_queue') {
-      await delay(1500 + Math.random() * 2000);
-      const mockPeer = this.mockPeer(Math.floor(Math.random() * 1000));
-      this.events.dispatchEvent(
-        new CustomEvent('match_found', {
-          detail: {
-            peerId: mockPeer.id,
-            peer: mockPeer,
-            initiateCall: true
-          },
-        }),
-      );
-      return;
-    }
-
-    if (payload.type === 'FRIEND_REQ') {
-      // Simulate auto-accept after a short delay
-      await delay(1200 + Math.random() * 800);
-      this.events.dispatchEvent(
-        new CustomEvent('FRIEND_ACCEPT', {
-          detail: {
-            peerId: payload.target,
-            peerDetails: {
-              name: 'Stranger',
-              nickname: 'Stranger',
-              avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=Stranger',
-              country: 'United States',
-            },
-          },
-        }),
-      );
-      return;
-    }
-
-    if (payload.type === 'signal_relay') {
-      // In demo mode, WebRTC won't work for video — that's expected
-      console.log('Demo mode: signal_relay ignored (WebRTC needs a real server)');
-      return;
-    }
-
-    if (payload.type === 'CHAT_INIT') {
-      // No-op in demo mode; the frontend handles local chat routing
-      return;
     }
   }
 
