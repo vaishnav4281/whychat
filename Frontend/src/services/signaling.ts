@@ -34,7 +34,7 @@ export class SignalingService {
   private ws: WebSocket | null = null;
   private url: string = import.meta.env.VITE_SIGNALING_URL ?? '';
   public events = new EventTarget() as SignalingEventTarget;
-  private reconnectInterval = 3000;
+  private reconnectInterval = 5000;
   private connectPromise: Promise<void> | null = null;
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private demoMode = false;
@@ -80,7 +80,7 @@ export class SignalingService {
           this.ws = null;
           this.connectPromise = null;
           resolve(this.enterDemoMode());
-        }, 3000);
+        }, 8000);
 
         this.ws.onopen = () => {
           clearTimeout(connectionTimeout);
@@ -100,6 +100,7 @@ export class SignalingService {
         };
 
         this.ws.onclose = () => {
+          const wasConnected = this.connected;
           this.connected = false;
           this.events.dispatchEvent(new Event('disconnected'));
           this.ws = null;
@@ -108,9 +109,9 @@ export class SignalingService {
             clearInterval(this.heartbeatInterval);
             this.heartbeatInterval = null;
           }
-          // Auto reconnect if we were once connected
-          if (this.connected) {
-            setTimeout(() => this.connect(), this.reconnectInterval);
+          // Fall back to demo mode so the app stays usable
+          if (wasConnected) {
+            this.enterDemoMode();
           }
         };
 
