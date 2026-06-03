@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Allow: /chat
+Disallow:
+
+Sitemap: https://whychat.pages.dev/sitemap.xml

@@ -102,6 +102,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "canonical", href: "https://whychat.pages.dev" },
+      { rel: "sitemap", type: "application/xml", href: "https://whychat.pages.dev/sitemap.xml" },
     ],
   }),
   shellComponent: RootShell,

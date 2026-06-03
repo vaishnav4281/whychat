@@ -1,0 +1,28 @@
+# WhyChat — Global Chat Platform
+
+## About
+WhyChat is a free, instant messaging platform to meet strangers from 150+ countries. Practice languages, make friends, and explore cultures — no signup required, no data stored on servers.
+
+## Key Features
+- Instant matching with people worldwide
+- Filter by gender, country, and language
+- 26+ language support (English, Hindi, Tamil, Malayalam, Telugu, Kannada, Bengali, Spanish, Japanese, Mandarin & more)
+- Real-time text messaging with WebRTC
+- Anonymous — no email, no password, no tracking
+- Works entirely in the browser (no download)
+- Deployed on Cloudflare global edge network
+
+## Technical Stack
+- Frontend: React 19, TanStack Router, Tailwind CSS v4
+- Backend: Cloudflare Workers + Durable Objects (SQLite)
+- Messaging: WebSocket signaling + WebRTC data channels
+- Build: Vite + Nitro (Cloudflare Pages preset)
+- Language: TypeScript
+
+## Content
+- Landing page at / — SEO-optimized with JSON-LD WebApplication schema
+- Chat app at /chat — requires a profile (stored in browser localStorage)
+- Explore, Chats, Friends tabs with real-time WebSocket pool
+
+## Availability
+The platform is live at https://whychat.pages.dev
